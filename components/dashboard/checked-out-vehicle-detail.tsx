@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Edit2, RotateCcw } from "lucide-react";
 
 import { PercentDot } from "@/components/dashboard/status-indicators";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ type CheckedOutVehicleDetailProps = {
   formatLocalTime: (iso?: string | null) => string;
   getDuration: (isoA: string, isoB: string) => string;
   onBack: () => void;
+  onDriveBack: (record: DriveoutRecord) => void;
+  onEditMoveTo: (record: DriveoutRecord) => void;
 };
 
 function initials(name?: string | null) {
@@ -45,6 +47,8 @@ export function CheckedOutVehicleDetail({
   formatLocalTime,
   getDuration,
   onBack,
+  onDriveBack,
+  onEditMoveTo,
 }: CheckedOutVehicleDetailProps) {
   return (
     <div className="bg-white rounded-xl border border-zinc-200 p-6 shadow-sm space-y-6">
@@ -57,9 +61,28 @@ export function CheckedOutVehicleDetail({
           <ArrowLeft className="size-4 mr-1" />
           Back to list
         </Button>
-        <span className="inline-block bg-red-100 border border-red-200 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
-          Checked Out
-        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onEditMoveTo(record)}
+            className="h-8 px-2 text-xs font-semibold"
+          >
+            <Edit2 className="mr-1 size-3.5" />
+            Edit
+          </Button>
+          <Button
+            type="button"
+            onClick={() => onDriveBack(record)}
+            className="h-8 bg-red-600 px-2 text-xs font-semibold hover:bg-red-700"
+          >
+            <RotateCcw className="mr-1 size-3.5" />
+            Drive back
+          </Button>
+          <span className="inline-block rounded border border-red-200 bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-700">
+            Checked Out
+          </span>
+        </div>
       </div>
 
       <div>
@@ -199,6 +222,26 @@ export function CheckedOutVehicleDetail({
           </div>
         </div>
       </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+            Vehicle moved to
+          </h3>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onEditMoveTo(record)}
+            className="h-7 px-2 text-xs font-semibold"
+          >
+            <Edit2 className="mr-1 size-3.5" />
+            Edit
+          </Button>
+        </div>
+          <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-xs font-medium text-zinc-700 leading-relaxed whitespace-pre-wrap">
+          {record.move_to || "-"}
+          </div>
+        </div>
 
       {record.notes && (
         <div className="space-y-2">

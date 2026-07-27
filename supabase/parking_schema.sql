@@ -126,12 +126,14 @@ create table if not exists public.history (
   fuel_l numeric null,
   fuel_pct integer null,
   fire_ext_expiry date null,
+  move_to text null,
   notes text null,
   created_at timestamp with time zone not null default now()
 );
 
 alter table public.history add column if not exists facility_code text null references public.facilities(code);
 alter table public.history add column if not exists vehicle_unit text null;
+alter table public.history add column if not exists move_to text null;
 create index if not exists history_facility_code_idx on public.history (facility_code);
 create index if not exists history_vehicle_id_idx on public.history (vehicle_id);
 

@@ -13,6 +13,7 @@ import {
   IdCard,
   LogOut,
   Plus,
+  RotateCcw,
   Search,
   Trash2,
   User,
@@ -31,6 +32,11 @@ import { BosReadingsTab } from "@/components/dashboard/bos-readings-tab";
 import { CheckedOutVehicleDetail } from "@/components/dashboard/checked-out-vehicle-detail";
 import { CheckInDialog } from "@/components/dashboard/check-in-dialog";
 import { DriveOutConfirmDialog } from "@/components/dashboard/drive-out-confirm-dialog";
+import { DriveOutDestinationDialog } from "@/components/dashboard/drive-out-destination-dialog";
+import {
+  DriveBackDialog,
+  EditDriveOutLocationDialog,
+} from "@/components/dashboard/drive-out-location-dialog";
 import { FireExpiryPicker } from "@/components/dashboard/fire-expiry-picker";
 import { HomeTab } from "@/components/dashboard/home-tab";
 import { LoginGate } from "@/components/dashboard/login-gate";
@@ -199,6 +205,17 @@ export default function Home() {
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [isConfirmingDriveout, setIsConfirmingDriveout] =
     useState<boolean>(false);
+  const [isEnteringDriveoutDestination, setIsEnteringDriveoutDestination] =
+    useState<boolean>(false);
+  const [driveoutDestination, setDriveoutDestination] = useState("");
+  const [editingDriveoutLocation, setEditingDriveoutLocation] =
+    useState<DriveoutRecord | null>(null);
+  const [driveoutLocationDraft, setDriveoutLocationDraft] = useState("");
+  const [driveBackRecord, setDriveBackRecord] =
+    useState<DriveoutRecord | null>(null);
+  const [driveBackLevel, setDriveBackLevel] = useState("");
+  const [driveBackLot, setDriveBackLot] = useState("");
+  const [driveBackError, setDriveBackError] = useState<string | null>(null);
   const [servicingPromptVehicle, setServicingPromptVehicle] =
     useState<DashboardVehicle | null>(null);
   const [isServicingFollowUpOpen, setIsServicingFollowUpOpen] =
@@ -1098,6 +1115,151 @@ if (isVerificationPending) {
     setActiveTab("driveout-detail");
   };
 
+  const applyDriveoutRecordUpdate = (updatedRecord: DriveoutRecord) => {
+    setDriveoutRecords((current) =>
+      current.map((record) =>
+        record.id === updatedRecord.id ? { ...record, ...updatedRecord } : record,
+      ),
+    );
+    setHistoryRecords((current) =>
+      current.map((record) =>
+        record.id === updatedRecord.id ? { ...record, ...updatedRecord } : record,
+      ),
+    );
+    setSelectedDriveout((current) =>
+      current?.id === updatedRecord.id
+        ? { ...current, ...updatedRecord }
+        : current,
+    );
+  };
+
+  const handleEditDriveoutLocation = (record: DriveoutRecord) => {
+    setEditingDriveoutLocation(record);
+    setDriveoutLocationDraft(record.move_to || "");
+  };
+
+  const handleSaveDriveoutLocation = async () => {
+    if (!editingDriveoutLocation) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/history/${editingDriveoutLocation.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          facility: activeFacility,
+          move_to: driveoutLocationDraft,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Location update failed");
+      }
+
+      applyDriveoutRecordUpdate(data.history);
+      setEditingDriveoutLocation(null);
+      setDriveoutLocationDraft("");
+      triggerToast("Vehicle location updated");
+    } catch (err: unknown) {
+      triggerToast(`Location update failed: ${getErrorMessage(err)}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenDriveBack = (record: DriveoutRecord) => {
+    const defaultLevel =
+      parkingLevels.find((parkingLevel) => parkingLevel.id === record.level)
+        ?.id ||
+      parkingLevels.find((parkingLevel) =>
+        vehicleMatchesLevel(record, parkingLevel),
+      )?.id ||
+      parkingLevels[0]?.id ||
+      "";
+
+    setDriveBackRecord(record);
+    setDriveBackLevel(defaultLevel);
+    setDriveBackLot(record.lot || "");
+    setDriveBackError(null);
+  };
+
+  const handleDriveBackSubmit = async () => {
+    if (!driveBackRecord) return;
+    if (!driveBackLevel || !driveBackLot) {
+      setDriveBackError("Level and lot are required");
+      return;
+    }
+    if (driveBackOccupiedLots[normalizeParkingValue(driveBackLot)]) {
+      setDriveBackError("Selected lot is already occupied");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setDriveBackError(null);
+    try {
+      const response = await fetch("/api/vehicles", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          plate: formatPlateDisplay(driveBackRecord.plate),
+          variant: driveBackRecord.variant || "-",
+          is_vor: driveBackRecord.is_vor === true,
+          vehicle_unit: driveBackRecord.vehicle_unit || null,
+          driver: profile.name,
+          driver_phone: profile.phone,
+          driver_unit: profileUnit,
+          level: driveBackLevel,
+          lot: driveBackLot,
+          odometer: driveBackRecord.odometer ?? null,
+          engine_hours: driveBackRecord.engine_hours ?? null,
+          starter_v: driveBackRecord.starter_v ?? null,
+          starter_pct: driveBackRecord.starter_pct ?? null,
+          aux_v: driveBackRecord.aux_v ?? null,
+          aux_pct: driveBackRecord.aux_pct ?? null,
+          fuel_l: driveBackRecord.fuel_l ?? null,
+          fuel_pct: driveBackRecord.fuel_pct ?? null,
+          fire_ext_expiry: driveBackRecord.fire_ext_expiry || null,
+          next_servicing: driveBackRecord.next_servicing || null,
+          last_serviced: driveBackRecord.last_serviced || null,
+          notes: driveBackRecord.notes || null,
+          facility: activeFacility,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Drive-back failed");
+      }
+
+      const location = `Returned to ${driveBackLevel} Lot ${driveBackLot}`;
+      const historyResponse = await fetch(`/api/history/${driveBackRecord.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          facility: activeFacility,
+          move_to: location,
+        }),
+      });
+      const historyData = await historyResponse.json();
+      if (historyResponse.ok) {
+        applyDriveoutRecordUpdate(historyData.history);
+      }
+
+      setDriveBackRecord(null);
+      setDriveBackLevel("");
+      setDriveBackLot("");
+      setDriveBackError(null);
+      triggerToast(
+        `${formatPlateDisplay(driveBackRecord.plate)} returned to ${driveBackLevel} Lot ${driveBackLot}`,
+      );
+      fetchDashboardData();
+      fetchDriveoutHistory();
+    } catch (err: unknown) {
+      setDriveBackError(getErrorMessage(err) || "Drive-back failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Lot selections in dynamic floor maps
   const occupiedLotsMap = (level: string) => {
     const levelConfig =
@@ -1121,6 +1283,19 @@ if (isVerificationPending) {
     parkingLevels[0];
   const ciLevelLots = getLevelLots(ciLevelConfig);
   const ciOccupiedLots = occupiedLotsMap(ciLevel);
+  const driveBackLevelConfig =
+    parkingLevels.find((parkingLevel) => parkingLevel.id === driveBackLevel) ??
+    parkingLevels.find(
+      (parkingLevel) =>
+        normalizeParkingValue(parkingLevel.id) ===
+        normalizeParkingValue(driveBackLevel),
+    );
+  const driveBackLevelLots = driveBackLevelConfig
+    ? getLevelLots(driveBackLevelConfig)
+    : [];
+  const driveBackOccupiedLots = driveBackLevel
+    ? occupiedLotsMap(driveBackLevel)
+    : {};
   const updateLevelConfig = selectedVehicle
     ? parkingLevels.find((parkingLevel) =>
         vehicleMatchesLevel(selectedVehicle, parkingLevel),
@@ -1421,12 +1596,20 @@ if (isVerificationPending) {
     }
   };
 
+  const handleDriveoutConfirm = () => {
+    if (!selectedVehicle) return;
+    setIsConfirmingDriveout(false);
+    setDriveoutDestination("");
+    setIsEnteringDriveoutDestination(true);
+  };
+
   // Drive out checkout handler
-  const handleDriveoutConfirm = async () => {
+  const handleDriveoutDestinationSubmit = async () => {
     if (!selectedVehicle) return;
 
     setIsSubmitting(true);
     try {
+      const moveTo = driveoutDestination.trim();
       const payload = {
         historyRow: {
           vehicle_id: selectedVehicle.id,
@@ -1455,6 +1638,7 @@ if (isVerificationPending) {
           is_vor: selectedVehicle.is_vor === true,
           next_servicing: selectedVehicle.next_servicing || null,
           last_serviced: selectedVehicle.last_serviced || null,
+          move_to: moveTo || null,
           notes: selectedVehicle.notes,
         },
       };
@@ -1471,8 +1655,11 @@ if (isVerificationPending) {
       }
 
       triggerToast(`${formatPlateDisplay(selectedVehicle.plate)} driven out`);
-      setIsConfirmingDriveout(false);
+      setIsEnteringDriveoutDestination(false);
+      setDriveoutDestination("");
       setSelectedVehicle(null);
+      setSelectedLot(null);
+      setSelectedLotVehicle(null);
       setActiveTab("search");
       fetchDashboardData();
     } catch (err: unknown) {
@@ -2016,6 +2203,9 @@ if (isVerificationPending) {
         .includes(driveoutSearchQuery.toLowerCase()) ||
       (r.variant || "")
         .toLowerCase()
+        .includes(driveoutSearchQuery.toLowerCase()) ||
+      (r.move_to || "")
+        .toLowerCase()
         .includes(driveoutSearchQuery.toLowerCase()),
   );
   const adminSearch = adminUserSearch.toLowerCase();
@@ -2240,6 +2430,13 @@ if (isVerificationPending) {
             onLotClick={handleLotClick}
             onOpenParkingLevel={openParkingLevel}
             onOpenVehicle={handleOpenVehicle}
+            onMoveOutVehicle={(vehicle) =>
+              guardVerifiedAction(() => {
+                setSelectedVehicle(vehicle);
+                setDriveoutDestination("");
+                setIsConfirmingDriveout(true);
+              })
+            }
             vehicleUnitLabel={vehicleUnitLabel}
           />
         )}
@@ -2423,8 +2620,9 @@ if (isVerificationPending) {
                   <div
                     key={r.id}
                     onClick={() => handleOpenDriveoutDetail(r)}
-                    className="cursor-pointer bg-white border border-zinc-200 hover:border-zinc-300 hover:shadow-xs p-4 rounded-xl flex items-center justify-between gap-4 transition-all"
+                    className="cursor-pointer bg-white border border-zinc-200 hover:border-zinc-300 hover:shadow-xs p-4 rounded-xl space-y-3 transition-all"
                   >
+                    <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div className="size-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center">
                         <Clock className="size-5" />
@@ -2443,6 +2641,44 @@ if (isVerificationPending) {
                       <p className="text-[10px] text-zinc-400 font-bold uppercase mt-1">
                         {r.driver || "—"}
                       </p>
+                    </div>
+                  </div>
+                    <div className="border-t border-zinc-100 pt-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+                            Vehicle moved to
+                          </p>
+                          <p className="mt-0.5 break-words text-xs font-semibold text-zinc-700">
+                            {r.move_to || "-"}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEditDriveoutLocation(r);
+                            }}
+                            className="h-7 px-2 text-[11px] font-semibold"
+                          >
+                            <Edit2 className="mr-1 size-3" />
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleOpenDriveBack(r);
+                            }}
+                            className="h-7 bg-red-600 px-2 text-[11px] font-semibold hover:bg-red-700"
+                          >
+                            <RotateCcw className="mr-1 size-3" />
+                            Drive back
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -3190,6 +3426,8 @@ if (isVerificationPending) {
             formatLocalTime={formatLocalTime}
             getDuration={getDuration}
             onBack={() => setActiveTab("driveout-history")}
+            onDriveBack={handleOpenDriveBack}
+            onEditMoveTo={handleEditDriveoutLocation}
           />
         )}
       </main>
@@ -3627,6 +3865,63 @@ if (isVerificationPending) {
           vehicle={selectedVehicle}
           onCancel={() => setIsConfirmingDriveout(false)}
           onConfirm={handleDriveoutConfirm}
+        />
+      )}
+
+      {isEnteringDriveoutDestination && selectedVehicle && (
+        <DriveOutDestinationDialog
+          destination={driveoutDestination}
+          isSubmitting={isSubmitting}
+          vehicle={selectedVehicle}
+          onCancel={() => {
+            setIsEnteringDriveoutDestination(false);
+            setDriveoutDestination("");
+          }}
+          onDestinationChange={setDriveoutDestination}
+          onSubmit={handleDriveoutDestinationSubmit}
+        />
+      )}
+
+      {editingDriveoutLocation && (
+        <EditDriveOutLocationDialog
+          destination={driveoutLocationDraft}
+          isSubmitting={isSubmitting}
+          record={editingDriveoutLocation}
+          onCancel={() => {
+            setEditingDriveoutLocation(null);
+            setDriveoutLocationDraft("");
+          }}
+          onDestinationChange={setDriveoutLocationDraft}
+          onSubmit={handleSaveDriveoutLocation}
+        />
+      )}
+
+      {driveBackRecord && (
+        <DriveBackDialog
+          error={driveBackError}
+          isSubmitting={isSubmitting}
+          level={driveBackLevel}
+          lot={driveBackLot}
+          lotOptions={driveBackLevelLots}
+          occupiedLots={driveBackOccupiedLots}
+          parkingLevels={parkingLevels}
+          record={driveBackRecord}
+          onCancel={() => {
+            setDriveBackRecord(null);
+            setDriveBackLevel("");
+            setDriveBackLot("");
+            setDriveBackError(null);
+          }}
+          onLevelChange={(level) => {
+            setDriveBackLevel(level);
+            setDriveBackLot("");
+            setDriveBackError(null);
+          }}
+          onLotChange={(lot) => {
+            setDriveBackLot(lot);
+            setDriveBackError(null);
+          }}
+          onSubmit={handleDriveBackSubmit}
         />
       )}
     </div>

@@ -1058,6 +1058,25 @@ export async function insertHistory(historyData: SupabasePayload) {
   return data ? withVehiclePlate(data) : data;
 }
 
+export async function updateHistoryMoveTo(
+  id: string,
+  facilityCode: string,
+  moveTo: string | null,
+) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("history")
+    .update({ move_to: moveTo })
+    .eq("id", id)
+    .eq("facility_code", facilityCode)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data ? withVehiclePlate(data) : data;
+}
+
 export async function getLatestTurretEscLog(vehicleId: string) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;

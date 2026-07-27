@@ -36,6 +36,7 @@ type BosVehicle = {
   fire_ext_expiry?: string | null;
   is_vor?: boolean | null;
   next_servicing?: string | null;
+  check_in?: string | null;
 };
 
 type FireExtStatus = {
@@ -60,6 +61,13 @@ type BosReadingsTabProps = {
 
 function vehicleUnitLabel(vehicle: BosVehicle) {
   return vehicle.vehicle_unit || "No vehicle unit";
+}
+
+function loggedDateLabel(value?: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return format(date, "dd MMM yyyy");
 }
 
 export function BosReadingsTab({
@@ -184,7 +192,8 @@ export function BosReadingsTab({
                 )}
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex min-w-0 items-center gap-3 lg:w-52">
+                  <div className="flex min-w-0 items-start justify-between gap-3 lg:w-52">
+                    <div className="flex min-w-0 items-center gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
                       <CarFront className="size-5" />
                     </div>
@@ -207,6 +216,10 @@ export function BosReadingsTab({
                         Lot {vehicle.lot ?? "-"}
                       </p>
                     </div>
+                    </div>
+                    <p className="shrink-0 text-xs font-bold text-zinc-500 lg:hidden">
+                      {loggedDateLabel(vehicle.check_in)}
+                    </p>
                   </div>
 
                   <div className="grid flex-1 grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">

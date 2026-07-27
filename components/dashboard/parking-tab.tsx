@@ -37,6 +37,7 @@ type ParkingTabProps = {
   onLotClick: (lotId: string, vehicle?: ParkingVehicle | null) => void;
   onOpenParkingLevel: (level: string) => void;
   onOpenVehicle: (vehicle: ParkingVehicle) => void;
+  onMoveOutVehicle: (vehicle: ParkingVehicle) => void;
   vehicleUnitLabel: (vehicle: { vehicle_unit?: string | null }) => string;
 };
 
@@ -55,6 +56,7 @@ export function ParkingTab({
   onLotClick,
   onOpenParkingLevel,
   onOpenVehicle,
+  onMoveOutVehicle,
   vehicleUnitLabel,
 }: ParkingTabProps) {
   return (
@@ -281,13 +283,23 @@ export function ParkingTab({
                       selectedLotVehicle.driver_depot}
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  onClick={() => onOpenVehicle(selectedLotVehicle)}
-                  className="bg-red-600 hover:bg-red-700 h-8 text-xs font-semibold px-4 shrink-0"
-                >
-                  View details
-                </Button>
+                <div className="flex shrink-0 flex-col gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => onOpenVehicle(selectedLotVehicle)}
+                    className="bg-red-600 hover:bg-red-700 h-8 text-xs font-semibold px-4"
+                  >
+                    View details
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onMoveOutVehicle(selectedLotVehicle)}
+                    className="h-8 border-zinc-200 text-xs font-semibold px-4"
+                  >
+                    Move out
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="w-full py-4 text-center text-sm font-semibold text-zinc-400 bg-zinc-50 border border-dashed border-zinc-200 rounded-lg animate-in fade-in duration-100">

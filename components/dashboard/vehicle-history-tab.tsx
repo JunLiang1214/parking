@@ -95,6 +95,16 @@ export function VehicleHistoryTab({
                   {record.notes}
                 </p>
               )}
+              {record.move_to && (
+                <div className="border-t border-zinc-100 pt-2 mt-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+                    Vehicle moved to
+                  </p>
+                  <p className="mt-0.5 text-xs font-semibold text-zinc-700">
+                    {record.move_to}
+                  </p>
+                </div>
+              )}
             </div>
           ))
         ) : (

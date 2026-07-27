@@ -173,6 +173,7 @@ export type DashboardVehicle = {
   next_servicing?: string | null;
   last_serviced?: string | null;
   notes?: string | null;
+  move_to?: string | null;
   check_in?: string | null;
   created_at?: string | null;
 };
@@ -437,6 +438,7 @@ const HISTORY_EXPORT_COLUMNS = [
   { key: "is_vor", label: "VOR Status" },
   { key: "next_servicing", label: "Next Servicing" },
   { key: "last_serviced", label: "Last Serviced" },
+  { key: "move_to", label: "Vehicle Moved To" },
   { key: "notes", label: "Notes" },
 ] as const;
 
