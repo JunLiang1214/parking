@@ -25,6 +25,27 @@ export const PERCENTAGE_VEHICLE_FIELDS = [
   ["fuel_pct", "Fuel percentage"],
 ] as const;
 
+export const BRACKETED_PLATE_PATTERN = /^\(\d\)\d{3}$/;
+export const BRACKETED_PLATE_EXAMPLE = "(7)085";
+export const BRACKETED_PLATE_HELP_TEXT =
+  "Enter 4 digits, with the first digit in brackets. e.g. (4)295.";
+export const BRACKETED_PLATE_ERROR =
+  "Vehicle plate must use 4 digits with the first digit in brackets, e.g. (4)295.";
+
+export function sanitizeBracketedPlateInput(value: string) {
+  return value.replace(/[^\d()]/g, "").slice(0, 6);
+}
+
+export function validateBracketedPlate(value: string) {
+  if (!BRACKETED_PLATE_PATTERN.test(value)) {
+    throw new Error(BRACKETED_PLATE_ERROR);
+  }
+}
+
+export function bracketedPlateDigitsOnly(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 export const VEHICLE_UPDATE_FIELDS = [
   "variant",
   "vehicle_unit",

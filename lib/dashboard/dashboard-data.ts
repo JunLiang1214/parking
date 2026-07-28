@@ -15,7 +15,6 @@ export const SAFETY_MESSAGES = [
 ];
 
 export const PLATE_MASK_ENABLED = true;
-export const PLATE_MAX_DIGITS = 3;
 
 export const VEHICLE_VARIANT_OPTIONS = ["HFV", "HARV", "2BT", "B", "BN"];
 

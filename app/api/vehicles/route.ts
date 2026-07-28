@@ -4,8 +4,11 @@ import { getRequestSession } from "@/lib/api-auth";
 import { rateLimited } from "@/lib/rate-limit";
 import { getVehicles, checkinVehicle, requireVerified, resolveFacilityCode } from "@/lib/supabase/server";
 import {
+  BRACKETED_PLATE_ERROR,
+  bracketedPlateDigitsOnly,
   buildVehicleCheckInPayload,
   isVehicleValidationError,
+  validateBracketedPlate,
 } from "@/lib/vehicles/rules";
 
 export async function GET(request: NextRequest) {
@@ -48,32 +51,21 @@ export async function POST(request: NextRequest) {
     const facilityCode = await resolveFacilityCode(session.openid, body.facility);
 
     const plateNumber = String(body.plate).trim();
-    if (!/^\d{1,3}(\(\d{1,2}\))?$/.test(plateNumber)) {
-      return NextResponse.json(
-        {
-          error:
-            "Vehicle plate must be up to 3 digits, optionally followed by a bracketed number, e.g. 675(1)",
-        },
-        { status: 400 },
-      );
+    try {
+      validateBracketedPlate(plateNumber);
+    } catch {
+      return NextResponse.json({ error: BRACKETED_PLATE_ERROR }, { status: 400 });
     }
 
-    // Vehicle Plate masking: entries are capped at 3 digits (plus an
-    // optional bracketed disambiguator, e.g. "675(1)") while each depot's
-    // plates are scoped to a single unit. Set PLATE_MASK_ENABLED to false
-    // (and remove this block) to allow longer plate numbers again.
+    // Vehicle Plate masking: entries use 4 digits, with the first digit in
+    // brackets (e.g. "(7)085"), while each depot's plates are scoped to a
+    // single unit. Set PLATE_MASK_ENABLED to false (and remove this block)
+    // to allow longer plate numbers again.
     const PLATE_MASK_ENABLED = true;
-    const PLATE_MAX_DIGITS = 3;
-    const plateDigitsOnly = plateNumber.split("(")[0];
-    if (PLATE_MASK_ENABLED && plateDigitsOnly.length > PLATE_MAX_DIGITS) {
-      return NextResponse.json(
-        { error: `Vehicle plate must be at most ${PLATE_MAX_DIGITS} digits` },
-        { status: 400 },
-      );
-    }
+    const plateDigitsOnly = bracketedPlateDigitsOnly(plateNumber);
 
     // Every vehicle's stored id is prefixed with its depot's facility code
-    // (e.g. "11FMD-087") so the same 3-digit plate can be reused across
+    // (e.g. "11FMD-(7)085") so the same bracketed plate can be reused across
     // depots without colliding — the UI only ever shows the part after the
     // prefix. Flip PLATE_MASK_ENABLED to false to go back to plain "MID"
     // prefixed IDs with no depot scoping.
@@ -82,10 +74,7 @@ export async function POST(request: NextRequest) {
       : `MID${plateNumber}`;
 
     // Warn instead of silently overwriting if this exact plate is already
-    // checked in at this depot. Since plates are now short 3-digit numbers,
-    // two different vehicles may legitimately share one — the person
-    // checking in can add a bracketed number (e.g. 675(1)) to tell them
-    // apart.
+    // checked in at this depot.
     const existingVehicles = await getVehicles(facilityCode);
     if (
       existingVehicles.some(
@@ -94,7 +83,7 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         {
-          error: `Vehicle plate ${plateNumber} already exists in the system. If this is a different vehicle, add a number in brackets to tell it apart, e.g. ${plateDigitsOnly}(1).`,
+          error: `Vehicle plate ${plateNumber} already exists in the system. Confirm the 4-digit plate (${plateDigitsOnly}) and try again.`,
         },
         { status: 409 },
       );

@@ -13,12 +13,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  PLATE_MASK_ENABLED,
-  PLATE_MAX_DIGITS,
   VEHICLE_VARIANT_OPTIONS,
   normalizeParkingValue,
   type ParkingLevelConfig,
 } from "@/lib/dashboard/dashboard-data";
+import {
+  BRACKETED_PLATE_EXAMPLE,
+  BRACKETED_PLATE_HELP_TEXT,
+  sanitizeBracketedPlateInput,
+} from "@/lib/vehicles/rules";
 
 type VehicleUnitOption = {
   id: string;
@@ -160,29 +163,16 @@ export function CheckInDialog({
                   type="text"
                   value={ciPlate}
                   onChange={(event) =>
-                    setCiPlate(
-                      event.target.value
-                        .replace(/[^\d()]/g, "")
-                        .slice(
-                          0,
-                          PLATE_MASK_ENABLED
-                            ? PLATE_MAX_DIGITS + 4
-                            : undefined,
-                        ),
-                    )
+                    setCiPlate(sanitizeBracketedPlateInput(event.target.value))
                   }
-                  placeholder="e.g. 087"
+                  placeholder={`e.g. ${BRACKETED_PLATE_EXAMPLE}`}
                   inputMode="text"
-                  maxLength={
-                    PLATE_MASK_ENABLED ? PLATE_MAX_DIGITS + 4 : undefined
-                  }
+                  maxLength={6}
                   required
                   className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600 focus:ring-3 focus:ring-red-600/15"
                 />
                 <p className="text-[10px] font-medium text-zinc-500">
-                  {PLATE_MASK_ENABLED
-                    ? `Enter up to ${PLATE_MAX_DIGITS} digits. If this plate is already in use by a different vehicle, add a number in brackets, e.g. 675(1).`
-                    : "Enter numbers only."}
+                  {BRACKETED_PLATE_HELP_TEXT}
                 </p>
               </div>
               <div className="space-y-1">

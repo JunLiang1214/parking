@@ -185,12 +185,15 @@ export function BosReadingsTab({
                 key={vehicle.id}
                 onClick={() => onOpenVehicle(vehicle)}
                 className={cn(
-                  "cursor-pointer rounded-xl border p-4 shadow-sm transition hover:shadow-md",
+                  "relative cursor-pointer rounded-xl border p-4 shadow-sm transition hover:shadow-md lg:pr-28",
                   serviceDue
                     ? "border-amber-300 bg-amber-50/70 shadow-amber-100 hover:border-amber-400"
                     : "border-zinc-200 bg-white hover:border-zinc-300",
                 )}
               >
+                <p className="absolute right-4 top-4 hidden text-xs font-bold text-zinc-500 lg:block">
+                  {loggedDateLabel(vehicle.check_in)}
+                </p>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 items-start justify-between gap-3 lg:w-52">
                     <div className="flex min-w-0 items-center gap-3">

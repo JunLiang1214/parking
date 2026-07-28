@@ -108,6 +108,7 @@ import {
   type VehicleUnitOption,
 } from "@/lib/dashboard/dashboard-data";
 import { cn } from "@/lib/utils";
+import { BRACKETED_PLATE_ERROR, validateBracketedPlate } from "@/lib/vehicles/rules";
 
 export default function Home() {
   const auth = useAuth();
@@ -1341,10 +1342,10 @@ if (isVerificationPending) {
       setFormError("Vehicle unit is required");
       return;
     }
-    if (!/^\d{1,3}(\(\d{1,2}\))?$/.test(ciPlate)) {
-      setFormError(
-        "Vehicle plate must be up to 3 digits, optionally followed by a bracketed number, e.g. 675(1)",
-      );
+    try {
+      validateBracketedPlate(ciPlate);
+    } catch {
+      setFormError(BRACKETED_PLATE_ERROR);
       return;
     }
     setIsSubmitting(true);
