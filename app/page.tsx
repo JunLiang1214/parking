@@ -557,37 +557,42 @@ useEffect(() => {
     }
   };
 
-  const fetchAdminData = async () => {
+  const fetchAdminData = async (
+    options: { runCleanup?: boolean; showLoading?: boolean } = {},
+  ) => {
     if (!profile?.is_admin) return;
 
-    setIsLoadingAdmin(true);
+    const { runCleanup = true, showLoading = true } = options;
+    if (showLoading) setIsLoadingAdmin(true);
     try {
-      const cleanupResponse = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "cleanup-ord-expired" }),
-      });
-      if (cleanupResponse.ok) {
-        const cleanupData = (await cleanupResponse.json()) as {
-          removedUsers?: AdminUserRecord[];
-        };
-        const unseenRemovedUsers = (cleanupData.removedUsers || []).filter(
-          (user) => !seenOrdAutoRemovedIds.has(user.id),
-        );
-        if (unseenRemovedUsers.length) {
-          setOrdAutoRemovedUsers(unseenRemovedUsers);
-          setSeenOrdAutoRemovedIds((seen) => {
-            const next = new Set(seen);
-            unseenRemovedUsers.forEach((user) => next.add(user.id));
-            return next;
-          });
+      if (runCleanup) {
+        const cleanupResponse = await fetch("/api/admin/users", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "cleanup-ord-expired" }),
+        });
+        if (cleanupResponse.ok) {
+          const cleanupData = (await cleanupResponse.json()) as {
+            removedUsers?: AdminUserRecord[];
+          };
+          const unseenRemovedUsers = (cleanupData.removedUsers || []).filter(
+            (user) => !seenOrdAutoRemovedIds.has(user.id),
+          );
+          if (unseenRemovedUsers.length) {
+            setOrdAutoRemovedUsers(unseenRemovedUsers);
+            setSeenOrdAutoRemovedIds((seen) => {
+              const next = new Set(seen);
+              unseenRemovedUsers.forEach((user) => next.add(user.id));
+              return next;
+            });
+          }
+        } else {
+          const cleanupErr = await cleanupResponse.json().catch(() => null);
+          console.error(
+            "Failed to run ORD cleanup:",
+            cleanupErr?.error || cleanupResponse.status,
+          );
         }
-      } else {
-        const cleanupErr = await cleanupResponse.json().catch(() => null);
-        console.error(
-          "Failed to run ORD cleanup:",
-          cleanupErr?.error || cleanupResponse.status,
-        );
       }
 
       const [
@@ -641,7 +646,7 @@ useEffect(() => {
       console.error("Failed to load admin data:", err);
       triggerToast("Could not load admin data");
     } finally {
-      setIsLoadingAdmin(false);
+      if (showLoading) setIsLoadingAdmin(false);
     }
   };
 
@@ -703,7 +708,7 @@ useEffect(() => {
   // Admins need the full user list so ORD reminders can show on Home
   // without first opening the Admin tab.
   if (profile.is_admin) {
-    fetchAdminData();
+    fetchAdminData({ showLoading: false });
   }
 }, [auth.isAuthenticated, profile, activeFacility, isVerificationPending]);
 
@@ -721,7 +726,7 @@ useEffect(() => {
     fetchDashboardData();
 
     if (profile.is_admin) {
-      fetchAdminData();
+      fetchAdminData({ runCleanup: false, showLoading: false });
     }
   }, AUTO_REFRESH_MS);
 
