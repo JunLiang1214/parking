@@ -46,6 +46,17 @@ const blankDraft: AnnouncementDraft = {
   isActive: true,
 };
 
+function adminAuditLine(announcement: AnnouncementRecord) {
+  const createdBy = announcement.created_by_name || announcement.created_by;
+  const updatedBy = announcement.updated_by_name || announcement.updated_by;
+
+  if (updatedBy && updatedBy !== createdBy) {
+    return `Created by ${createdBy || "-"} - Last edited by ${updatedBy}`;
+  }
+
+  return `Created by ${createdBy || "-"}`;
+}
+
 function toDateInputValue(value?: string | null) {
   if (!value) return "";
   const date = new Date(value);
@@ -223,6 +234,9 @@ export function AdminAnnouncementsTab({
               <p className="mt-2 text-[11px] font-semibold text-zinc-500">
                 {toDateInputValue(announcement.starts_at) || "Always"} to{" "}
                 {toDateInputValue(announcement.ends_at) || "no end"}
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-zinc-400">
+                {adminAuditLine(announcement)}
               </p>
             </div>
 

@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   if (limited) return limited;
 
   try {
-    await requireAdmin(session.openid);
+    const admin = await requireAdmin(session.openid);
 
     const body = (await request.json()) as {
       message?: string;
@@ -74,7 +74,10 @@ export async function POST(request: NextRequest) {
       starts_at: body.startsAt || null,
       ends_at: body.endsAt || null,
       is_active: body.isActive !== false,
-      created_by: session.openid,
+      created_by: admin.id,
+      created_by_name: admin.name,
+      updated_by: admin.id,
+      updated_by_name: admin.name,
       facility_code: facilityCode,
     });
 
@@ -108,7 +111,7 @@ export async function PATCH(request: NextRequest) {
   if (limited) return limited;
 
   try {
-    await requireAdmin(session.openid);
+    const admin = await requireAdmin(session.openid);
 
     const body = (await request.json()) as {
       id?: string;
@@ -127,6 +130,8 @@ export async function PATCH(request: NextRequest) {
       ...(body.startsAt !== undefined ? { starts_at: body.startsAt || null } : {}),
       ...(body.endsAt !== undefined ? { ends_at: body.endsAt || null } : {}),
       ...(body.isActive !== undefined ? { is_active: body.isActive } : {}),
+      updated_by: admin.id,
+      updated_by_name: admin.name,
     });
 
     const auditResult = await logAuditEvent({
@@ -163,14 +168,14 @@ export async function DELETE(request: NextRequest) {
   if (limited) return limited;
 
   try {
-    await requireAdmin(session.openid);
+    const admin = await requireAdmin(session.openid);
 
     const body = (await request.json()) as { id?: string };
     if (!body.id) {
       return NextResponse.json({ error: "Message id is required" }, { status: 400 });
     }
 
-    await deleteSafetyMessage(body.id);
+    await deleteSafetyMessage(body.id, admin);
 
     const auditResult = await logAuditEvent({
       actorId: session.openid,

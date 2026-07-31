@@ -2221,6 +2221,21 @@ if (isVerificationPending) {
   );
   const userOrdsToday = (user: AdminUserRecord) =>
     getOrdDaysLeft(user.ord_date) === 0;
+  const adminAuditLineForContent = (
+    item: Pick<
+      SafetyMessageRecord | AnnouncementRecord,
+      "created_by" | "created_by_name" | "updated_by" | "updated_by_name"
+    >,
+  ) => {
+    const createdBy = item.created_by_name || item.created_by;
+    const updatedBy = item.updated_by_name || item.updated_by;
+
+    if (updatedBy && updatedBy !== createdBy) {
+      return `Created by ${createdBy || "-"} - Last edited by ${updatedBy}`;
+    }
+
+    return `Created by ${createdBy || "-"}`;
+  };
   const hasAdminUserChanges = adminUsers.some(
     (user) =>
       adminDraftAdmins[user.id] !== undefined &&
@@ -3278,6 +3293,9 @@ if (isVerificationPending) {
                                     "dd MMM yyyy HH:mm",
                                   )
                                 : "no end"}
+                            </p>
+                            <p className="text-[11px] font-semibold text-zinc-400">
+                              {adminAuditLineForContent(message)}
                             </p>
                             <div className="flex gap-2">
                               <Button

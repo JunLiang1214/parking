@@ -87,6 +87,14 @@ export type SafetyMessageRecord = {
   starts_at: string | null;
   ends_at: string | null;
   is_active: boolean;
+  created_by: string | null;
+  created_by_name?: string | null;
+  updated_by?: string | null;
+  updated_by_name?: string | null;
+  deleted_by?: string | null;
+  deleted_by_name?: string | null;
+  deleted_at?: string | null;
+  facility_code: string | null;
   created_at: string;
 };
 
@@ -102,6 +110,12 @@ export type AnnouncementRecord = {
   is_active: boolean;
   facility_code: string | null;
   created_by: string | null;
+  created_by_name?: string | null;
+  updated_by?: string | null;
+  updated_by_name?: string | null;
+  deleted_by?: string | null;
+  deleted_by_name?: string | null;
+  deleted_at?: string | null;
   created_at: string;
 };
 

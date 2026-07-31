@@ -68,6 +68,12 @@ export type SafetyMessage = {
   ends_at: string | null;
   is_active: boolean;
   created_by: string | null;
+  created_by_name?: string | null;
+  updated_by?: string | null;
+  updated_by_name?: string | null;
+  deleted_by?: string | null;
+  deleted_by_name?: string | null;
+  deleted_at?: string | null;
   facility_code: string | null;
   created_at: string;
 };
@@ -84,6 +90,12 @@ export type Announcement = {
   is_active: boolean;
   facility_code: string | null;
   created_by: string | null;
+  created_by_name?: string | null;
+  updated_by?: string | null;
+  updated_by_name?: string | null;
+  deleted_by?: string | null;
+  deleted_by_name?: string | null;
+  deleted_at?: string | null;
   created_at: string;
 };
 
@@ -1128,6 +1140,7 @@ export async function getActiveSafetyMessages(facilityCode: string) {
     .from("safety_messages")
     .select("*")
     .eq("is_active", true)
+    .is("deleted_at", null)
     // Messages tagged for this facility, plus legacy/global messages that
     // predate multi-depot support (facility_code is null = shown everywhere).
     .or(`facility_code.eq.${facilityCode},facility_code.is.null`)
@@ -1146,6 +1159,7 @@ export async function getSafetyMessages(facilityCode: string) {
   const { data, error } = await supabase
     .from("safety_messages")
     .select("*")
+    .is("deleted_at", null)
     .or(`facility_code.eq.${facilityCode},facility_code.is.null`)
     .order("created_at", { ascending: false });
 
@@ -1159,6 +1173,9 @@ export async function createSafetyMessage(messageData: {
   ends_at?: string | null;
   is_active?: boolean;
   created_by?: string | null;
+  created_by_name?: string | null;
+  updated_by?: string | null;
+  updated_by_name?: string | null;
   facility_code?: string | null;
 }) {
   const supabase = getSupabaseAdmin();
@@ -1181,6 +1198,8 @@ export async function updateSafetyMessage(
     starts_at?: string | null;
     ends_at?: string | null;
     is_active?: boolean;
+    updated_by?: string | null;
+    updated_by_name?: string | null;
   },
 ) {
   const supabase = getSupabaseAdmin();
@@ -1197,11 +1216,24 @@ export async function updateSafetyMessage(
   return data;
 }
 
-export async function deleteSafetyMessage(id: string) {
+export async function deleteSafetyMessage(
+  id: string,
+  actor: { id: string; name?: string | null },
+) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
 
-  const { error } = await supabase.from("safety_messages").delete().eq("id", id);
+  const { error } = await supabase
+    .from("safety_messages")
+    .update({
+      is_active: false,
+      deleted_at: new Date().toISOString(),
+      deleted_by: actor.id,
+      deleted_by_name: actor.name || null,
+      updated_by: actor.id,
+      updated_by_name: actor.name || null,
+    })
+    .eq("id", id);
   if (error) throw error;
   return { success: true };
 }
@@ -1227,6 +1259,7 @@ export async function getActiveAnnouncements(
     .from("app_announcements")
     .select("*")
     .eq("is_active", true)
+    .is("deleted_at", null)
     .in("target_role", roles)
     .or(`facility_code.eq.${facilityCode},facility_code.is.null`)
     .or(`starts_at.is.null,starts_at.lte.${now}`)
@@ -1244,6 +1277,7 @@ export async function getAnnouncements(facilityCode: string) {
   const { data, error } = await supabase
     .from("app_announcements")
     .select("*")
+    .is("deleted_at", null)
     .or(`facility_code.eq.${facilityCode},facility_code.is.null`)
     .order("created_at", { ascending: false });
 
@@ -1261,6 +1295,9 @@ export async function createAnnouncement(announcementData: {
   ends_at?: string | null;
   is_active?: boolean;
   created_by?: string | null;
+  created_by_name?: string | null;
+  updated_by?: string | null;
+  updated_by_name?: string | null;
   facility_code?: string | null;
 }) {
   const supabase = getSupabaseAdmin();
@@ -1287,6 +1324,8 @@ export async function updateAnnouncement(
     starts_at?: string | null;
     ends_at?: string | null;
     is_active?: boolean;
+    updated_by?: string | null;
+    updated_by_name?: string | null;
   },
 ) {
   const supabase = getSupabaseAdmin();
@@ -1303,11 +1342,24 @@ export async function updateAnnouncement(
   return data;
 }
 
-export async function deleteAnnouncement(id: string) {
+export async function deleteAnnouncement(
+  id: string,
+  actor: { id: string; name?: string | null },
+) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
 
-  const { error } = await supabase.from("app_announcements").delete().eq("id", id);
+  const { error } = await supabase
+    .from("app_announcements")
+    .update({
+      is_active: false,
+      deleted_at: new Date().toISOString(),
+      deleted_by: actor.id,
+      deleted_by_name: actor.name || null,
+      updated_by: actor.id,
+      updated_by_name: actor.name || null,
+    })
+    .eq("id", id);
   if (error) throw error;
   return { success: true };
 }

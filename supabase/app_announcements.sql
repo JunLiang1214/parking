@@ -14,6 +14,12 @@ create table if not exists public.app_announcements (
   is_active boolean not null default true,
   facility_code text null references public.facilities(code),
   created_by text null references public.users(id) on delete set null,
+  created_by_name text null,
+  updated_by text null references public.users(id) on delete set null,
+  updated_by_name text null,
+  deleted_by text null references public.users(id) on delete set null,
+  deleted_by_name text null,
+  deleted_at timestamp with time zone null,
   created_at timestamp with time zone not null default now()
 );
 
@@ -22,6 +28,23 @@ on public.app_announcements (facility_code, is_active, starts_at, ends_at);
 
 create index if not exists app_announcements_created_at_idx
 on public.app_announcements (created_at desc);
+
+alter table public.app_announcements
+  add column if not exists created_by_name text null,
+  add column if not exists updated_by text null references public.users(id) on delete set null,
+  add column if not exists updated_by_name text null,
+  add column if not exists deleted_by text null references public.users(id) on delete set null,
+  add column if not exists deleted_by_name text null,
+  add column if not exists deleted_at timestamp with time zone null;
+
+create index if not exists app_announcements_deleted_at_idx
+on public.app_announcements (deleted_at);
+
+update public.app_announcements announcement
+set created_by_name = users.name
+from public.users users
+where announcement.created_by_name is null
+  and announcement.created_by = users.id;
 
 alter table public.app_announcements enable row level security;
 
