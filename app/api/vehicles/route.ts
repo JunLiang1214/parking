@@ -12,6 +12,15 @@ import {
   validateBracketedPlate,
 } from "@/lib/vehicles/rules";
 
+function getErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err) {
+    const value = (err as { message?: unknown }).message;
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return fallback;
+}
+
 export async function GET(request: NextRequest) {
   const session = await getRequestSession(request);
 
@@ -103,7 +112,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, vehicle: data });
   } catch (err) {
     console.error("Check-in failed:", err);
-    const message = err instanceof Error ? err.message : "Check-in failed";
+    const message = getErrorMessage(err, "Check-in failed");
     const status = message.includes("hasn't been verified")
       ? 403
       : isVehicleValidationError(err)

@@ -1128,7 +1128,7 @@ export async function updateHistoryMoveTo(
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(toErrorMessage(error));
   return data ? withVehiclePlate(data) : data;
 }
 
