@@ -99,7 +99,11 @@ import {
   type VehicleUnitOption,
 } from "@/lib/dashboard/dashboard-data";
 import { cn } from "@/lib/utils";
-import { BRACKETED_PLATE_ERROR, validateBracketedPlate } from "@/lib/vehicles/rules";
+import {
+  BRACKETED_PLATE_ERROR,
+  normalizeBracketedPlate,
+  validateBracketedPlate,
+} from "@/lib/vehicles/rules";
 
 export default function Home() {
   const auth = useAuth();
@@ -1335,8 +1339,9 @@ if (isVerificationPending) {
       setFormError("Vehicle unit is required");
       return;
     }
+    const normalizedPlate = normalizeBracketedPlate(ciPlate);
     try {
-      validateBracketedPlate(ciPlate);
+      validateBracketedPlate(normalizedPlate);
     } catch {
       setFormError(BRACKETED_PLATE_ERROR);
       return;
@@ -1345,7 +1350,7 @@ if (isVerificationPending) {
     setFormError(null);
 
     const payload = {
-      plate: ciPlate,
+      plate: normalizedPlate,
       variant: ciVariant,
       is_vor: ciIsVor,
       vehicle_unit: ciVehicleUnit || null,
@@ -1378,7 +1383,7 @@ if (isVerificationPending) {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Check-in failed");
 
-      triggerToast(`✓ Vehicle ${ciPlate} checked in → ${ciLevel} Lot ${ciLot}`);
+      triggerToast(`✓ Vehicle ${normalizedPlate} checked in → ${ciLevel} Lot ${ciLot}`);
       setIsCheckingIn(false);
 
       // Clear inputs

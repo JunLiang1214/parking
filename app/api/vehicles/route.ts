@@ -8,6 +8,7 @@ import {
   bracketedPlateDigitsOnly,
   buildVehicleCheckInPayload,
   isVehicleValidationError,
+  normalizeBracketedPlate,
   validateBracketedPlate,
 } from "@/lib/vehicles/rules";
 
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const facilityCode = await resolveFacilityCode(session.openid, body.facility);
 
-    const plateNumber = String(body.plate).trim();
+    const plateNumber = normalizeBracketedPlate(String(body.plate));
     try {
       validateBracketedPlate(plateNumber);
     } catch {

@@ -33,11 +33,25 @@ export const BRACKETED_PLATE_ERROR =
   "Vehicle plate must use 4 digits with the first digit in brackets, e.g. (4)295.";
 
 export function sanitizeBracketedPlateInput(value: string) {
+  const digits = bracketedPlateDigitsOnly(value);
+  if (digits.length === 4) return formatBracketedPlateDigits(digits);
   return value.replace(/[^\d()]/g, "").slice(0, 6);
 }
 
+export function formatBracketedPlateDigits(digits: string) {
+  const plateDigits = digits.replace(/\D/g, "").slice(0, 4);
+  if (plateDigits.length !== 4) return plateDigits;
+  return `(${plateDigits[0]})${plateDigits.slice(1)}`;
+}
+
+export function normalizeBracketedPlate(value: string) {
+  const digits = bracketedPlateDigitsOnly(value);
+  if (digits.length === 4) return formatBracketedPlateDigits(digits);
+  return value.trim();
+}
+
 export function validateBracketedPlate(value: string) {
-  if (!BRACKETED_PLATE_PATTERN.test(value)) {
+  if (!BRACKETED_PLATE_PATTERN.test(normalizeBracketedPlate(value))) {
     throw new Error(BRACKETED_PLATE_ERROR);
   }
 }

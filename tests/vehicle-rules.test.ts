@@ -4,8 +4,11 @@ import test from "node:test";
 import {
   assertVehicleFacilityAllowed,
   buildVehicleCheckInPayload,
+  normalizeBracketedPlate,
   pickVehicleUpdateData,
   resolveRequestedFacilityForProfile,
+  sanitizeBracketedPlateInput,
+  validateBracketedPlate,
 } from "../lib/vehicles/rules";
 
 test("optional readings stay optional for check-in payloads", () => {
@@ -100,6 +103,14 @@ test("vehicle unit is trimmed when present and nulled when blank", () => {
       fire_ext_expiry: null,
     },
   );
+});
+
+test("vehicle plates typed as four digits normalize to bracketed format", () => {
+  assert.equal(sanitizeBracketedPlateInput("7085"), "(7)085");
+  assert.equal(normalizeBracketedPlate("7085"), "(7)085");
+  assert.equal(normalizeBracketedPlate("(7)085"), "(7)085");
+  assert.doesNotThrow(() => validateBracketedPlate("7085"));
+  assert.doesNotThrow(() => validateBracketedPlate("(7)085"));
 });
 
 test("facility resolution locks normal users to their own facility", () => {
