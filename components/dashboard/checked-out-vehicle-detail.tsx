@@ -8,6 +8,7 @@ import {
   formatPlateDisplay,
   type DriveoutRecord,
 } from "@/lib/dashboard/dashboard-data";
+import { formatPhoneDisplay, whatsappUrlForPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 type CheckedOutVehicleDetailProps = {
@@ -139,10 +140,10 @@ export function CheckedOutVehicleDetail({
             {record.driver_phone && (
               <a
                 target="_blank"
-                href={`https://wa.me/+65${record.driver_phone}`}
+                href={whatsappUrlForPhone(record.driver_phone) || undefined}
                 className="text-xs text-red-600 font-bold mt-1 inline-block hover:underline"
               >
-                {record.driver_phone}
+                {formatPhoneDisplay(record.driver_phone)}
               </a>
             )}
           </div>

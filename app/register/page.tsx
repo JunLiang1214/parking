@@ -14,6 +14,12 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+  normalizePhoneNumber,
+  PHONE_ERROR,
+  PHONE_HELP_TEXT,
+  PHONE_PLACEHOLDER,
+} from "@/lib/phone";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -224,6 +230,14 @@ export default function RegisterPage() {
       return;
     }
 
+    let normalizedPhone: string;
+    try {
+      normalizedPhone = normalizePhoneNumber(phone);
+    } catch {
+      setError(PHONE_ERROR);
+      return;
+    }
+
     if (!unit.trim()) {
       setError("Please enter your platoon.");
       return;
@@ -249,7 +263,7 @@ export default function RegisterPage() {
           rank,
           ordDate,
           isTechnician,
-          phone,
+          phone: normalizedPhone,
           unit,
           facility,
         }),
@@ -391,9 +405,12 @@ export default function RegisterPage() {
                 type="tel"
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
-                placeholder="+65 9XXX XXXX"
+                placeholder={PHONE_PLACEHOLDER}
                 className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600 focus:ring-3 focus:ring-red-600/15"
               />
+              <p className="text-[10px] font-medium text-zinc-500">
+                {PHONE_HELP_TEXT}
+              </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

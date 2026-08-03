@@ -19,6 +19,7 @@ import {
   type DashboardVehicle,
   type TurretEscLogRecord,
 } from "@/lib/dashboard/dashboard-data";
+import { formatPhoneDisplay, whatsappUrlForPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 type FireExtStatus = {
@@ -192,11 +193,11 @@ export function ActiveVehicleDetail({
             {vehicle.driver_phone && (
               <a
                 target="_blank"
-                href={`https://wa.me/+65${vehicle.driver_phone}`}
+                href={whatsappUrlForPhone(vehicle.driver_phone) || undefined}
                 className="text-xs text-red-600 font-bold mt-1 inline-flex items-center gap-1 hover:underline"
               >
                 <Phone className="size-3" />
-                {vehicle.driver_phone}
+                {formatPhoneDisplay(vehicle.driver_phone)}
               </a>
             )}
           </div>

@@ -22,6 +22,7 @@ import {
   BRACKETED_PLATE_HELP_TEXT,
   sanitizeBracketedPlateInput,
 } from "@/lib/vehicles/rules";
+import { formatPhoneDisplay, PHONE_PLACEHOLDER } from "@/lib/phone";
 
 type VehicleUnitOption = {
   id: string;
@@ -255,9 +256,9 @@ export function CheckInDialog({
                 </label>
                 <input
                   type="tel"
-                  value={ciDriverPhone}
+                  value={formatPhoneDisplay(ciDriverPhone) || ciDriverPhone}
                   readOnly
-                  placeholder="+65 9XXX XXXX"
+                  placeholder={PHONE_PLACEHOLDER}
                   className="h-10 w-full cursor-not-allowed rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none text-zinc-600"
                 />
               </div>

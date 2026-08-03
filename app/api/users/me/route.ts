@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getRequestSession } from "@/lib/api-auth";
+import { normalizePhoneNumber, PHONE_ERROR } from "@/lib/phone";
 import { rateLimited } from "@/lib/rate-limit";
 import {
   getFacilities,
@@ -63,6 +64,7 @@ export async function PATCH(request: NextRequest) {
     const rank = body.rank?.trim() || "";
     const ordDate = body.ordDate?.trim() || "";
     const facility = body.facility?.trim() || "";
+    const phoneInput = body.phone?.trim() || "";
 
     if (!rank) {
       return badRequest("Rank is required.");
@@ -74,6 +76,17 @@ export async function PATCH(request: NextRequest) {
 
     if (!facility) {
       return badRequest("Depot is required.");
+    }
+
+    if (!phoneInput) {
+      return badRequest("Phone number is required.");
+    }
+
+    let phone: string;
+    try {
+      phone = normalizePhoneNumber(phoneInput);
+    } catch {
+      return badRequest(PHONE_ERROR);
     }
 
     const { facilities, error: facilitiesError } = await getFacilities();
@@ -91,7 +104,7 @@ export async function PATCH(request: NextRequest) {
       rank,
       ordDate,
       isTechnician: body.isTechnician === true,
-      phone: body.phone?.trim() || null,
+      phone,
       unit: body.unit?.trim() || null,
       name: body.name?.trim() || session.name,
       facilityCode: facility,

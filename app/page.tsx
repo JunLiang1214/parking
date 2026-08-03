@@ -98,6 +98,13 @@ import {
   type UserRemovalNotice,
   type VehicleUnitOption,
 } from "@/lib/dashboard/dashboard-data";
+import {
+  formatPhoneDisplay,
+  normalizePhoneNumber,
+  PHONE_ERROR,
+  PHONE_HELP_TEXT,
+  PHONE_PLACEHOLDER,
+} from "@/lib/phone";
 import { cn } from "@/lib/utils";
 import {
   BRACKETED_PLATE_ERROR,
@@ -1459,12 +1466,23 @@ if (isVerificationPending) {
     setIsSubmitting(true);
     setFormError(null);
 
+    let normalizedUpdateDriverPhone: string | null = null;
+    try {
+      normalizedUpdateDriverPhone = upDriverPhone
+        ? normalizePhoneNumber(upDriverPhone)
+        : null;
+    } catch {
+      setFormError(PHONE_ERROR);
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       variant: upVariant || null,
       is_vor: upIsVor,
       vehicle_unit: upVehicleUnit || null,
       driver: upDriver || null,
-      driver_phone: upDriverPhone || null,
+      driver_phone: normalizedUpdateDriverPhone,
       driver_unit: upDriverUnit || null,
       level: upLevel || null,
       lot: upLot || null,
@@ -1487,7 +1505,8 @@ if (isVerificationPending) {
         vehicle_unit: upVehicleUnit || selectedVehicle.vehicle_unit || null,
         driver_id: selectedVehicle.driver_id || null,
         driver: upDriver || selectedVehicle.driver,
-        driver_phone: upDriverPhone || selectedVehicle.driver_phone,
+        driver_phone:
+          normalizedUpdateDriverPhone || selectedVehicle.driver_phone,
         driver_unit:
           upDriverUnit ||
           selectedVehicle.driver_unit ||
@@ -1766,12 +1785,13 @@ if (isVerificationPending) {
   const handleSaveProfile = async () => {
     setIsSubmitting(true);
     try {
+      const normalizedPhone = normalizePhoneNumber(pePhone);
       const res = await fetch("/api/users/me", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name: peName,
-          phone: pePhone,
+          phone: normalizedPhone,
           unit: peUnit,
           rank: peRank,
           ordDate: peOrdDate,
@@ -1793,7 +1813,13 @@ if (isVerificationPending) {
       setIsEditingProfile(false);
       triggerToast("Profile saved");
     } catch (err: unknown) {
-      triggerToast(`Profile update failed: ${getErrorMessage(err)}`);
+      triggerToast(
+        `Profile update failed: ${
+          err instanceof Error && err.message === PHONE_ERROR
+            ? PHONE_ERROR
+            : getErrorMessage(err)
+        }`,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -2771,7 +2797,9 @@ if (isVerificationPending) {
               <div className="space-y-4 text-sm">
                 <div className="flex items-center justify-between py-2 border-b border-zinc-50">
                   <span className="text-zinc-500 font-medium">Phone</span>
-                  <span className="font-semibold">{profile.phone || "—"}</span>
+                  <span className="font-semibold">
+                    {formatPhoneDisplay(profile.phone) || "—"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-zinc-50">
                   <span className="text-zinc-500 font-medium">Platoon</span>
@@ -2828,8 +2856,12 @@ if (isVerificationPending) {
                     type="tel"
                     value={pePhone}
                     onChange={(e) => setPePhone(e.target.value)}
+                    placeholder={PHONE_PLACEHOLDER}
                     className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600 focus:ring-3 focus:ring-red-600/15"
                   />
+                  <p className="text-[10px] font-medium text-zinc-500">
+                    {PHONE_HELP_TEXT}
+                  </p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -3080,7 +3112,7 @@ if (isVerificationPending) {
                               {user.name}
                             </p>
                             <p className="truncate text-xs text-zinc-500">
-                              {user.phone || "No phone"} ·{" "}
+                              {formatPhoneDisplay(user.phone) || "No phone"} ·{" "}
                               {user.unit || user.depot || "No unit"}
                             </p>
                             {ordsToday && (
