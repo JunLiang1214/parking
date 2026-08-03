@@ -7,6 +7,7 @@ import {
   Download,
   Edit2,
   FileText,
+  Filter,
   Plus,
   Search,
   XCircle,
@@ -45,6 +46,10 @@ type FireExtStatus = {
   bg: string;
 };
 
+type VorFilterValue = "operational" | "vor";
+type MeasurementSortDirection = "none" | "desc" | "asc";
+type MeasurementKey = "odometer" | "engine_hours" | "starter" | "auxiliary" | "fuel";
+
 type BosReadingsTabProps = {
   activeFacilityName: string;
   isLoading: boolean;
@@ -70,6 +75,51 @@ function loggedDateLabel(value?: string | null) {
   return format(date, "dd MMM yyyy");
 }
 
+const MEASUREMENT_FILTERS: {
+  key: MeasurementKey;
+  label: string;
+}[] = [
+  { key: "odometer", label: "Odometer" },
+  { key: "engine_hours", label: "Engine hours" },
+  { key: "starter", label: "Starter" },
+  { key: "auxiliary", label: "Auxiliary" },
+  { key: "fuel", label: "Fuel" },
+];
+
+function uniqueSortedValues(values: (string | null | undefined)[]) {
+  return Array.from(
+    new Set(values.map((value) => value?.trim()).filter(Boolean) as string[]),
+  ).sort((a, b) => a.localeCompare(b));
+}
+
+function toggleArrayValue<T extends string>(values: T[], value: T) {
+  return values.includes(value)
+    ? values.filter((current) => current !== value)
+    : [...values, value];
+}
+
+function numericValue(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function measurementValue(vehicle: BosVehicle, key: MeasurementKey) {
+  if (key === "odometer") return numericValue(vehicle.odometer);
+  if (key === "engine_hours") return numericValue(vehicle.engine_hours);
+  if (key === "starter") {
+    return numericValue(vehicle.starter_pct) ?? numericValue(vehicle.starter_v);
+  }
+  if (key === "auxiliary") {
+    return numericValue(vehicle.aux_pct) ?? numericValue(vehicle.aux_v);
+  }
+  return numericValue(vehicle.fuel_pct) ?? numericValue(vehicle.fuel_l);
+}
+
+function compareText(a?: string | null, b?: string | null) {
+  return String(a ?? "").localeCompare(String(b ?? ""));
+}
+
 export function BosReadingsTab({
   activeFacilityName,
   isLoading,
@@ -84,24 +134,133 @@ export function BosReadingsTab({
   onUpdateVehicle,
 }: BosReadingsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
+  const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
+  const [selectedVorStatuses, setSelectedVorStatuses] = useState<
+    VorFilterValue[]
+  >([]);
+  const [measurementSorts, setMeasurementSorts] = useState<
+    Record<MeasurementKey, MeasurementSortDirection>
+  >({
+    odometer: "none",
+    engine_hours: "none",
+    starter: "none",
+    auxiliary: "none",
+    fuel: "none",
+  });
+  const [includeEmptyMeasurements, setIncludeEmptyMeasurements] = useState(true);
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
-  const filteredVehicles = useMemo(() => {
-    if (!normalizedSearchQuery) return vehicles;
 
-    return vehicles.filter((vehicle) =>
-      [
-        vehicle.plate,
-        vehicle.vehicle_unit,
-        vehicle.variant,
-        vehicle.level,
-        vehicle.lot,
-      ].some((value) =>
-        String(value ?? "")
-          .toLowerCase()
-          .includes(normalizedSearchQuery),
+  const vehicleUnitOptions = useMemo(
+    () => uniqueSortedValues(vehicles.map((vehicle) => vehicle.vehicle_unit)),
+    [vehicles],
+  );
+  const variantOptions = useMemo(
+    () => uniqueSortedValues(vehicles.map((vehicle) => vehicle.variant)),
+    [vehicles],
+  );
+  const activeMeasurementSorts = useMemo(
+    () =>
+      MEASUREMENT_FILTERS.filter(
+        ({ key }) => measurementSorts[key] !== "none",
       ),
-    );
-  }, [normalizedSearchQuery, vehicles]);
+    [measurementSorts],
+  );
+  const activeFilterCount =
+    selectedUnits.length +
+    selectedVariants.length +
+    selectedVorStatuses.length +
+    activeMeasurementSorts.length +
+    (includeEmptyMeasurements ? 0 : 1);
+
+  const filteredVehicles = useMemo(() => {
+    const searchedVehicles = normalizedSearchQuery
+      ? vehicles.filter((vehicle) =>
+          [
+            vehicle.plate,
+            vehicle.vehicle_unit,
+            vehicle.variant,
+            vehicle.level,
+            vehicle.lot,
+          ].some((value) =>
+            String(value ?? "")
+              .toLowerCase()
+              .includes(normalizedSearchQuery),
+          ),
+        )
+      : vehicles;
+
+    const narrowedVehicles = searchedVehicles.filter((vehicle) => {
+      if (
+        selectedUnits.length &&
+        !selectedUnits.includes(vehicle.vehicle_unit || "")
+      ) {
+        return false;
+      }
+      if (
+        selectedVariants.length &&
+        !selectedVariants.includes(vehicle.variant || "")
+      ) {
+        return false;
+      }
+      if (selectedVorStatuses.length) {
+        const vorStatus: VorFilterValue = vehicle.is_vor ? "vor" : "operational";
+        if (!selectedVorStatuses.includes(vorStatus)) return false;
+      }
+      if (!includeEmptyMeasurements && activeMeasurementSorts.length) {
+        return activeMeasurementSorts.every(
+          ({ key }) => measurementValue(vehicle, key) !== null,
+        );
+      }
+      return true;
+    });
+
+    if (!activeMeasurementSorts.length) return narrowedVehicles;
+
+    return [...narrowedVehicles].sort((a, b) => {
+      for (const { key } of activeMeasurementSorts) {
+        const direction = measurementSorts[key];
+        const aValue = measurementValue(a, key);
+        const bValue = measurementValue(b, key);
+
+        if (aValue === null && bValue === null) continue;
+        if (aValue === null) return includeEmptyMeasurements ? 1 : 0;
+        if (bValue === null) return includeEmptyMeasurements ? -1 : 0;
+        if (aValue === bValue) continue;
+
+        return direction === "desc" ? bValue - aValue : aValue - bValue;
+      }
+
+      return (
+        compareText(a.vehicle_unit, b.vehicle_unit) ||
+        compareText(a.variant, b.variant) ||
+        compareText(a.plate, b.plate)
+      );
+    });
+  }, [
+    activeMeasurementSorts,
+    includeEmptyMeasurements,
+    measurementSorts,
+    normalizedSearchQuery,
+    selectedUnits,
+    selectedVariants,
+    selectedVorStatuses,
+    vehicles,
+  ]);
+
+  const resetFilters = () => {
+    setSelectedUnits([]);
+    setSelectedVariants([]);
+    setSelectedVorStatuses([]);
+    setMeasurementSorts({
+      odometer: "none",
+      engine_hours: "none",
+      starter: "none",
+      auxiliary: "none",
+      fuel: "none",
+    });
+    setIncludeEmptyMeasurements(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -162,6 +321,166 @@ export function BosReadingsTab({
           className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-4 text-sm shadow-xs outline-none transition focus:border-red-600 focus:ring-3 focus:ring-red-600/15"
         />
       </div>
+
+      <details className="rounded-xl border border-zinc-200 bg-white shadow-xs">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-extrabold text-zinc-800 marker:hidden">
+          <span className="flex items-center gap-2">
+            <Filter className="size-4 text-zinc-500" />
+            Filter by
+            {activeFilterCount > 0 && (
+              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-black text-red-700">
+                {activeFilterCount}
+              </span>
+            )}
+          </span>
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                resetFilters();
+              }}
+              className="text-xs font-bold text-zinc-500 hover:text-red-700"
+            >
+              Clear
+            </button>
+          )}
+        </summary>
+        <div className="grid gap-4 border-t border-zinc-100 p-4 lg:grid-cols-[1fr_1fr_1fr_1.4fr]">
+          <div>
+            <p className="mb-2 text-[11px] font-black uppercase text-zinc-400">
+              Vehicle unit
+            </p>
+            <div className="space-y-2">
+              {vehicleUnitOptions.length ? (
+                vehicleUnitOptions.map((unit) => (
+                  <label
+                    key={unit}
+                    className="flex items-center gap-2 text-xs font-semibold text-zinc-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedUnits.includes(unit)}
+                      onChange={() =>
+                        setSelectedUnits((current) =>
+                          toggleArrayValue(current, unit),
+                        )
+                      }
+                      className="size-4 rounded border-zinc-300 text-red-600"
+                    />
+                    <span>{unit}</span>
+                  </label>
+                ))
+              ) : (
+                <p className="text-xs font-medium text-zinc-400">No units</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-[11px] font-black uppercase text-zinc-400">
+              Vehicle variant
+            </p>
+            <div className="space-y-2">
+              {variantOptions.length ? (
+                variantOptions.map((variant) => (
+                  <label
+                    key={variant}
+                    className="flex items-center gap-2 text-xs font-semibold text-zinc-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedVariants.includes(variant)}
+                      onChange={() =>
+                        setSelectedVariants((current) =>
+                          toggleArrayValue(current, variant),
+                        )
+                      }
+                      className="size-4 rounded border-zinc-300 text-red-600"
+                    />
+                    <span>{variant}</span>
+                  </label>
+                ))
+              ) : (
+                <p className="text-xs font-medium text-zinc-400">No variants</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-[11px] font-black uppercase text-zinc-400">
+              VOR status
+            </p>
+            <div className="space-y-2">
+              {[
+                { value: "operational" as const, label: "Operational" },
+                { value: "vor" as const, label: "VOR" },
+              ].map((status) => (
+                <label
+                  key={status.value}
+                  className="flex items-center gap-2 text-xs font-semibold text-zinc-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedVorStatuses.includes(status.value)}
+                    onChange={() =>
+                      setSelectedVorStatuses((current) =>
+                        toggleArrayValue(current, status.value),
+                      )
+                    }
+                    className="size-4 rounded border-zinc-300 text-red-600"
+                  />
+                  <span>{status.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-[11px] font-black uppercase text-zinc-400">
+                Measurements
+              </p>
+              <label className="flex items-center gap-2 text-[11px] font-bold text-zinc-600">
+                <input
+                  type="checkbox"
+                  checked={includeEmptyMeasurements}
+                  onChange={(event) =>
+                    setIncludeEmptyMeasurements(event.target.checked)
+                  }
+                  className="size-4 rounded border-zinc-300 text-red-600"
+                />
+                Include empty
+              </label>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {MEASUREMENT_FILTERS.map((filter) => (
+                <label
+                  key={filter.key}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700"
+                >
+                  <span>{filter.label}</span>
+                  <select
+                    value={measurementSorts[filter.key]}
+                    onChange={(event) =>
+                      setMeasurementSorts((current) => ({
+                        ...current,
+                        [filter.key]: event.target
+                          .value as MeasurementSortDirection,
+                      }))
+                    }
+                    className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs font-bold outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/15"
+                  >
+                    <option value="none">Off</option>
+                    <option value="desc">High to low</option>
+                    <option value="asc">Low to high</option>
+                  </select>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </details>
 
       <div className="space-y-2">
         {isLoading ? (
@@ -331,8 +650,8 @@ export function BosReadingsTab({
           })
         ) : (
           <p className="rounded-xl border border-zinc-200 bg-white py-8 text-center text-sm font-medium text-zinc-500">
-            {normalizedSearchQuery
-              ? "No BOS vehicles found matching search."
+            {normalizedSearchQuery || activeFilterCount > 0
+              ? "No BOS vehicles found matching search or filters."
               : "No active vehicles checked in yet."}
           </p>
         )}
