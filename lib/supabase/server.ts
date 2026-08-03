@@ -1109,7 +1109,7 @@ export async function insertHistory(historyData: SupabasePayload) {
     error = retry.error;
   }
 
-  if (error) throw error;
+  if (error) throw new Error(toErrorMessage(error));
   return data ? withVehiclePlate(data) : data;
 }
 
