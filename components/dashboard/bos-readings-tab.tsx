@@ -136,9 +136,8 @@ export function BosReadingsTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
   const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
-  const [selectedVorStatuses, setSelectedVorStatuses] = useState<
-    VorFilterValue[]
-  >([]);
+  const [selectedVorStatus, setSelectedVorStatus] =
+    useState<VorFilterValue | null>(null);
   const [measurementSorts, setMeasurementSorts] = useState<
     Record<MeasurementKey, MeasurementSortDirection>
   >({
@@ -169,7 +168,7 @@ export function BosReadingsTab({
   const activeFilterCount =
     selectedUnits.length +
     selectedVariants.length +
-    selectedVorStatuses.length +
+    (selectedVorStatus ? 1 : 0) +
     activeMeasurementSorts.length +
     (includeEmptyMeasurements ? 0 : 1);
 
@@ -203,9 +202,9 @@ export function BosReadingsTab({
       ) {
         return false;
       }
-      if (selectedVorStatuses.length) {
+      if (selectedVorStatus) {
         const vorStatus: VorFilterValue = vehicle.is_vor ? "vor" : "operational";
-        if (!selectedVorStatuses.includes(vorStatus)) return false;
+        if (selectedVorStatus !== vorStatus) return false;
       }
       if (!includeEmptyMeasurements && activeMeasurementSorts.length) {
         return activeMeasurementSorts.every(
@@ -244,14 +243,14 @@ export function BosReadingsTab({
     normalizedSearchQuery,
     selectedUnits,
     selectedVariants,
-    selectedVorStatuses,
+    selectedVorStatus,
     vehicles,
   ]);
 
   const resetFilters = () => {
     setSelectedUnits([]);
     setSelectedVariants([]);
-    setSelectedVorStatuses([]);
+    setSelectedVorStatus(null);
     setMeasurementSorts({
       odometer: "none",
       engine_hours: "none",
@@ -346,7 +345,7 @@ export function BosReadingsTab({
             </button>
           )}
         </summary>
-        <div className="grid gap-4 border-t border-zinc-100 p-4 lg:grid-cols-[1fr_1fr_1fr_1.4fr]">
+        <div className="grid gap-4 border-t border-zinc-100 p-4 md:grid-cols-3">
           <div>
             <p className="mb-2 text-[11px] font-black uppercase text-zinc-400">
               Vehicle unit
@@ -411,32 +410,29 @@ export function BosReadingsTab({
             <p className="mb-2 text-[11px] font-black uppercase text-zinc-400">
               VOR status
             </p>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2 rounded-lg bg-zinc-100 p-1">
               {[
                 { value: "operational" as const, label: "Operational" },
                 { value: "vor" as const, label: "VOR" },
               ].map((status) => (
-                <label
+                <button
+                  type="button"
                   key={status.value}
-                  className="flex items-center gap-2 text-xs font-semibold text-zinc-700"
+                  onClick={() => setSelectedVorStatus(status.value)}
+                  className={cn(
+                    "h-9 rounded-md px-2 text-xs font-black transition",
+                    selectedVorStatus === status.value
+                      ? "bg-white text-red-700 shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-800",
+                  )}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedVorStatuses.includes(status.value)}
-                    onChange={() =>
-                      setSelectedVorStatuses((current) =>
-                        toggleArrayValue(current, status.value),
-                      )
-                    }
-                    className="size-4 rounded border-zinc-300 text-red-600"
-                  />
-                  <span>{status.label}</span>
-                </label>
+                  {status.label}
+                </button>
               ))}
             </div>
           </div>
 
-          <div>
+          <div className="md:col-span-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <p className="text-[11px] font-black uppercase text-zinc-400">
                 Measurements
@@ -453,23 +449,28 @@ export function BosReadingsTab({
                 Include empty
               </label>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
               {MEASUREMENT_FILTERS.map((filter) => (
                 <label
                   key={filter.key}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700"
+                  className="grid min-w-0 gap-2 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700"
                 >
-                  <span>{filter.label}</span>
+                  <span className="truncate">{filter.label}</span>
                   <select
                     value={measurementSorts[filter.key]}
-                    onChange={(event) =>
-                      setMeasurementSorts((current) => ({
-                        ...current,
-                        [filter.key]: event.target
-                          .value as MeasurementSortDirection,
-                      }))
-                    }
-                    className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs font-bold outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/15"
+                    onChange={(event) => {
+                      const direction = event.target
+                        .value as MeasurementSortDirection;
+                      setMeasurementSorts({
+                        odometer: "none",
+                        engine_hours: "none",
+                        starter: "none",
+                        auxiliary: "none",
+                        fuel: "none",
+                        [filter.key]: direction,
+                      });
+                    }}
+                    className="h-8 min-w-0 rounded-md border border-zinc-200 bg-white px-2 text-xs font-bold outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/15"
                   >
                     <option value="none">Off</option>
                     <option value="desc">High to low</option>
