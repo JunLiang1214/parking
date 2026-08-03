@@ -1,6 +1,5 @@
 "use client";
 
-import { format } from "date-fns";
 import {
   Calendar as CalendarIcon,
   IdCard,
@@ -30,15 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
 import { RequiredMark } from "@/components/dashboard/required-mark";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
-import { cn } from "@/lib/utils";
 
 type ProfileResponse = {
   profile: {
@@ -110,18 +102,6 @@ const RANK_CATEGORIES = [
     ],
   },
 ];
-
-// Timezone-safe parser for YYYY-MM-DD strings
-const parseLocalDate = (dateStr: string) => {
-  if (!dateStr) return undefined;
-  const parts = dateStr.split("-");
-  if (parts.length !== 3) return undefined;
-  return new Date(
-    parseInt(parts[0], 10),
-    parseInt(parts[1], 10) - 1,
-    parseInt(parts[2], 10),
-  );
-};
 
 export default function RegisterPage() {
   const auth = useAuth();
@@ -302,12 +282,6 @@ export default function RegisterPage() {
     );
   }
 
-  const selectedDate = parseLocalDate(ordDate);
-  const currentYear = new Date().getFullYear();
-  const selectedYear = selectedDate?.getFullYear() ?? currentYear;
-  const ordCalendarStart = new Date(Math.min(currentYear - 5, selectedYear), 0);
-  const ordCalendarEnd = new Date(Math.max(currentYear + 45, selectedYear), 11);
-
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-6 py-12">
       <Card className="w-full max-w-lg rounded-lg border-zinc-200 shadow-sm">
@@ -386,54 +360,25 @@ export default function RegisterPage() {
                 ORD date
                 <RequiredMark />
               </label>
-              <Popover>
-                <PopoverTrigger asChild>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={ordDate}
+                  onChange={(event) => setOrdDate(event.target.value)}
+                  required
+                  className="h-10 min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600 focus:ring-3 focus:ring-red-600/15"
+                />
+                {ordDate ? (
                   <Button
                     type="button"
                     variant="outline"
-                    className={cn(
-                      "w-full h-10 bg-white border border-zinc-200 px-3 text-left font-normal justify-between transition focus:border-red-600 focus:ring-3 focus:ring-red-600/15 hover:bg-zinc-50",
-                      !ordDate && "text-muted-foreground",
-                    )}
+                    onClick={() => setOrdDate("")}
+                    className="h-10 px-3 text-xs font-semibold"
                   >
-                    <span>
-                      {selectedDate
-                        ? format(selectedDate, "dd MMM yyyy")
-                        : "Select date"}
-                    </span>
-                    <CalendarIcon
-                      className="size-4 text-zinc-400"
-                      aria-hidden="true"
-                    />
+                    Clear
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto p-0 bg-white border border-zinc-200 shadow-md rounded-md"
-                  align="start"
-                >
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    captionLayout="dropdown"
-                    navLayout="after"
-                    startMonth={ordCalendarStart}
-                    endMonth={ordCalendarEnd}
-                    onSelect={(date) => {
-                      if (date) {
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(
-                          2,
-                          "0",
-                        );
-                        const day = String(date.getDate()).padStart(2, "0");
-                        setOrdDate(`${year}-${month}-${day}`);
-                      } else {
-                        setOrdDate("");
-                      }
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+                ) : null}
+              </div>
             </div>
 
             <div className="space-y-2">

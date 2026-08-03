@@ -133,6 +133,7 @@ export async function POST(request: NextRequest) {
 
     const auditResult = await logAuditEvent({
       actorId: session.openid,
+      actorName: admin.name,
       action: "announcement.create",
       targetId: created?.id ?? null,
       targetLabel: created?.title || message,
@@ -214,6 +215,7 @@ export async function PATCH(request: NextRequest) {
 
     const auditResult = await logAuditEvent({
       actorId: session.openid,
+      actorName: admin.name,
       action: "announcement.update",
       targetId: body.id,
       targetLabel: updated?.title || updated?.message || body.id,
@@ -249,12 +251,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Announcement id is required" }, { status: 400 });
     }
 
-    await deleteAnnouncement(body.id, admin);
+    const deleted = await deleteAnnouncement(body.id, admin);
 
     const auditResult = await logAuditEvent({
       actorId: session.openid,
+      actorName: admin.name,
       action: "announcement.delete",
       targetId: body.id,
+      targetLabel: deleted?.title || deleted?.message || body.id,
     });
 
     return NextResponse.json({

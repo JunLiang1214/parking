@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
 
     const auditResult = await logAuditEvent({
       actorId: session.openid,
+      actorName: admin.name,
       action: "safety_message.create",
       targetId: created?.id ?? null,
       targetLabel: message,
@@ -136,6 +137,7 @@ export async function PATCH(request: NextRequest) {
 
     const auditResult = await logAuditEvent({
       actorId: session.openid,
+      actorName: admin.name,
       action: "safety_message.update",
       targetId: body.id,
       targetLabel: updated?.message ?? body.id,
@@ -175,12 +177,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Message id is required" }, { status: 400 });
     }
 
-    await deleteSafetyMessage(body.id, admin);
+    const deleted = await deleteSafetyMessage(body.id, admin);
 
     const auditResult = await logAuditEvent({
       actorId: session.openid,
+      actorName: admin.name,
       action: "safety_message.delete",
       targetId: body.id,
+      targetLabel: deleted?.message ?? body.id,
     });
 
     return NextResponse.json({

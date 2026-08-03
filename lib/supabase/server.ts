@@ -99,6 +99,17 @@ export type Announcement = {
   created_at: string;
 };
 
+export type AuditLogEntry = {
+  id: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  action: string;
+  target_id: string | null;
+  target_label: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+};
+
 export type ParkingLevelConfig = {
   id: string;
   label: string;
@@ -752,7 +763,39 @@ export async function getAuditLog(limit = 200) {
       `${error.message}${error.hint ? ` (hint: ${error.hint})` : ""}${error.code ? ` [${error.code}]` : ""}`,
     );
   }
-  return data || [];
+  const entries = (data || []) as AuditLogEntry[];
+  const actorIds = Array.from(
+    new Set(
+      entries
+        .filter((entry) => !entry.actor_name && entry.actor_id)
+        .map((entry) => entry.actor_id as string),
+    ),
+  );
+
+  if (!actorIds.length) return entries;
+
+  const { data: users, error: usersError } = await supabase
+    .from(getUsersTable())
+    .select("id,name")
+    .in("id", actorIds);
+
+  if (usersError) {
+    console.error("Failed to enrich audit log actor names:", toErrorMessage(usersError));
+    return entries;
+  }
+
+  const namesById = new Map(
+    (users || []).map((user: { id: string; name: string | null }) => [
+      user.id,
+      user.name,
+    ]),
+  );
+
+  return entries.map((entry) =>
+    entry.actor_name || !entry.actor_id
+      ? entry
+      : { ...entry, actor_name: namesById.get(entry.actor_id) ?? entry.actor_name },
+  );
 }
 
 export async function setUserAdmin(actorId: string, targetId: string, isAdmin: boolean) {
@@ -1223,7 +1266,7 @@ export async function deleteSafetyMessage(
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("safety_messages")
     .update({
       is_active: false,
@@ -1233,9 +1276,11 @@ export async function deleteSafetyMessage(
       updated_by: actor.id,
       updated_by_name: actor.name || null,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select()
+    .single<SafetyMessage>();
   if (error) throw error;
-  return { success: true };
+  return data;
 }
 
 function announcementRolesForProfile(profile: UserProfile) {
@@ -1349,7 +1394,7 @@ export async function deleteAnnouncement(
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("app_announcements")
     .update({
       is_active: false,
@@ -1359,7 +1404,9 @@ export async function deleteAnnouncement(
       updated_by: actor.id,
       updated_by_name: actor.name || null,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select()
+    .single<Announcement>();
   if (error) throw error;
-  return { success: true };
+  return data;
 }

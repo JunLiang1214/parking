@@ -3,7 +3,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, react-hooks/set-state-in-effect, react-hooks/purity, react-hooks/exhaustive-deps, react/no-unescaped-entities */
 
 import {
-  Calendar,
   Check,
   ChevronDown,
   Clock,
@@ -57,12 +56,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Calendar as DatePickerCalendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -91,8 +84,6 @@ import {
   getLevelLots,
   localInputToUtcIso,
   normalizeParkingValue,
-  parseDateInput,
-  toDateInputValue,
   utcIsoToLocalInput,
   vehicleMatchesLevel,
   type AnnouncementRecord,
@@ -274,6 +265,7 @@ export default function Home() {
   const [upDriver, setUpDriver] = useState("");
   const [upDriverPhone, setUpDriverPhone] = useState("");
   const [upDriverUnit, setUpDriverUnit] = useState("");
+  const [upLevel, setUpLevel] = useState("");
   const [upLot, setUpLot] = useState("");
   const [upOdometer, setUpOdometer] = useState("");
   const [upEngineHours, setUpEngineHours] = useState("");
@@ -1060,18 +1052,6 @@ if (isVerificationPending) {
   const getErrorMessage = (error: unknown) =>
     error instanceof Error ? error.message : "Unknown error";
 
-  const currentYear = new Date().getFullYear();
-  const profileOrdDate = parseDateInput(peOrdDate);
-  const profileOrdYear = profileOrdDate?.getFullYear() ?? currentYear;
-  const profileOrdCalendarStart = new Date(
-    Math.min(currentYear - 5, profileOrdYear),
-    0,
-  );
-  const profileOrdCalendarEnd = new Date(
-    Math.max(currentYear + 45, profileOrdYear),
-    11,
-  );
-
   // Handle open vehicle details
   const handleOpenVehicle = async (vehicle: DashboardVehicle) => {
     setSelectedVehicle(vehicle);
@@ -1303,18 +1283,26 @@ if (isVerificationPending) {
     ? occupiedLotsMap(driveBackLevel)
     : {};
   const updateLevelConfig = selectedVehicle
-    ? parkingLevels.find((parkingLevel) =>
+    ? parkingLevels.find((parkingLevel) => parkingLevel.id === upLevel) ??
+      parkingLevels.find(
+        (parkingLevel) =>
+          normalizeParkingValue(parkingLevel.id) ===
+          normalizeParkingValue(upLevel),
+      ) ??
+      parkingLevels.find((parkingLevel) =>
         vehicleMatchesLevel(selectedVehicle, parkingLevel),
       )
     : undefined;
   const updateLevelLots = Array.from(
     new Set([
       ...(updateLevelConfig ? getLevelLots(updateLevelConfig) : []),
-      ...(selectedVehicle?.lot ? [selectedVehicle.lot] : []),
+      ...(selectedVehicle?.lot && selectedVehicle.level === upLevel
+        ? [selectedVehicle.lot]
+        : []),
     ]),
   );
   const updateOccupiedLots = selectedVehicle
-    ? occupiedLotsMap(selectedVehicle.level ?? "")
+    ? occupiedLotsMap(upLevel || selectedVehicle.level || "")
     : {};
 
   const openCheckinModal = () => {
@@ -1433,6 +1421,12 @@ if (isVerificationPending) {
     setUpDriver(v.driver || "");
     setUpDriverPhone(v.driver_phone || "");
     setUpDriverUnit(v.driver_unit || v.driver_depot || "");
+    setUpLevel(
+      parkingLevels.find((parkingLevel) => vehicleMatchesLevel(v, parkingLevel))
+        ?.id ||
+        v.level ||
+        "",
+    );
     setUpLot(v.lot || "");
     setUpOdometer(v.odometer?.toString() || "");
     setUpEngineHours(v.engine_hours?.toString() || "");
@@ -1453,6 +1447,10 @@ if (isVerificationPending) {
   const handleUpdateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVehicle) return;
+    if (!upLevel || !upLot) {
+      setFormError("Level and Lot are required");
+      return;
+    }
     setIsSubmitting(true);
     setFormError(null);
 
@@ -1463,6 +1461,7 @@ if (isVerificationPending) {
       driver: upDriver || null,
       driver_phone: upDriverPhone || null,
       driver_unit: upDriverUnit || null,
+      level: upLevel || null,
       lot: upLot || null,
       odometer: upOdometer ? parseFloat(upOdometer) : null,
       engine_hours: upEngineHours ? parseFloat(upEngineHours) : null,
@@ -1489,7 +1488,7 @@ if (isVerificationPending) {
           selectedVehicle.driver_unit ||
           selectedVehicle.driver_depot,
         lot: upLot || selectedVehicle.lot,
-        level: selectedVehicle.level,
+        level: upLevel || selectedVehicle.level,
         odometer: upOdometer ? parseFloat(upOdometer) : null,
         engine_hours: upEngineHours ? parseFloat(upEngineHours) : null,
         starter_v: upBattStarterV ? parseFloat(upBattStarterV) : null,
@@ -2900,44 +2899,25 @@ if (isVerificationPending) {
                       ORD date
                       <RequiredMark />
                     </label>
-                    <Popover>
-                      <PopoverTrigger asChild>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={peOrdDate}
+                        onChange={(event) => setPeOrdDate(event.target.value)}
+                        required
+                        className="h-10 min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600 focus:ring-3 focus:ring-red-600/15"
+                      />
+                      {peOrdDate ? (
                         <Button
                           type="button"
                           variant="outline"
-                          className={cn(
-                            "h-10 w-full justify-between rounded-md border-zinc-200 bg-white px-3 text-left text-sm font-normal hover:bg-zinc-50 focus:border-red-600 focus:ring-3 focus:ring-red-600/15",
-                            !peOrdDate && "text-muted-foreground",
-                          )}
+                          onClick={() => setPeOrdDate("")}
+                          className="h-10 px-3 text-xs font-semibold"
                         >
-                          <span>
-                            {profileOrdDate
-                              ? format(profileOrdDate, "dd MMM yyyy")
-                              : "Select date"}
-                          </span>
-                          <Calendar
-                            className="size-4 text-zinc-400"
-                            aria-hidden="true"
-                          />
+                          Clear
                         </Button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-auto p-0 bg-white border border-zinc-200 shadow-md rounded-md"
-                        align="start"
-                      >
-                        <DatePickerCalendar
-                          mode="single"
-                          selected={profileOrdDate}
-                          captionLayout="dropdown"
-                          navLayout="after"
-                          startMonth={profileOrdCalendarStart}
-                          endMonth={profileOrdCalendarEnd}
-                          onSelect={(date) => {
-                            setPeOrdDate(date ? toDateInputValue(date) : "");
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 
@@ -3634,13 +3614,26 @@ if (isVerificationPending) {
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-zinc-700">
                       Level
+                      <RequiredMark />
                     </label>
-                    <input
-                      type="text"
-                      value={selectedVehicle.level ?? ""}
-                      disabled
-                      className="h-10 w-full rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none cursor-not-allowed"
-                    />
+                    <select
+                      value={upLevel}
+                      onChange={(event) => {
+                        setUpLevel(event.target.value);
+                        setUpLot("");
+                      }}
+                      required
+                      className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600"
+                    >
+                      <option value="" disabled>
+                        Select level
+                      </option>
+                      {parkingLevels.map((level) => (
+                        <option key={level.id} value={level.id}>
+                          {level.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-zinc-700">

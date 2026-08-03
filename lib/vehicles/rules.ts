@@ -52,6 +52,7 @@ export const VEHICLE_UPDATE_FIELDS = [
   "driver",
   "driver_phone",
   "driver_unit",
+  "level",
   "lot",
   "odometer",
   "engine_hours",
@@ -132,6 +133,10 @@ export function pickVehicleUpdateData(body: VehicleRequestBody) {
 
   if (typeof updateData.lot === "string") {
     updateData.lot = updateData.lot.toUpperCase().trim();
+  }
+
+  if (typeof updateData.level === "string") {
+    updateData.level = updateData.level.trim();
   }
 
   if ("vehicle_unit" in updateData) {
