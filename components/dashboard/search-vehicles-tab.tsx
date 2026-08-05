@@ -21,6 +21,7 @@ type SearchVehicle = {
   level?: string | null;
   lot?: string | null;
   check_in?: string | null;
+  updated_at?: string | null;
   driver?: string | null;
   is_vor?: boolean | null;
   next_servicing?: string | null;
@@ -58,6 +59,21 @@ export function SearchVehiclesTab({
   onSearchVehicleUnitChange,
   vehicleUnitLabel,
 }: SearchVehiclesTabProps) {
+  const updatedAtLabel = (value?: string | null) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+
+    return new Intl.DateTimeFormat("en-SG", {
+      day: "2-digit",
+      month: "short",
+      year: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid gap-2 sm:grid-cols-[1fr_220px]">
@@ -119,17 +135,17 @@ export function SearchVehiclesTab({
               type="button"
               onClick={() => onOpenVehicle(vehicle)}
               className={cn(
-                "cursor-pointer border p-4 rounded-xl flex items-center justify-between gap-4 transition-all text-left",
+                "cursor-pointer border p-4 rounded-xl flex items-start justify-between gap-4 transition-all text-left",
                 serviceDue
                   ? "border-amber-300 bg-amber-50/70 shadow-sm shadow-amber-100 hover:border-amber-400"
                   : "bg-white border-zinc-200 hover:border-zinc-300 hover:shadow-xs",
               )}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 <div className="size-10 bg-zinc-100 text-zinc-600 rounded-lg flex items-center justify-center">
                   <CarFront className="size-5" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="font-bold text-zinc-900">
                     {formatPlateDisplay(vehicle.plate)}
                   </div>
@@ -148,11 +164,17 @@ export function SearchVehiclesTab({
                 ) : (
                   <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
                 )}
-                <div className="text-right">
+                <div className="w-28 text-right sm:w-32">
                   <p className="text-xs text-red-600 font-semibold">
                     {formatTimeAgo(vehicle.check_in || "")}
                   </p>
-                  <p className="text-[10px] text-zinc-400 font-bold uppercase mt-1">
+                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wide text-zinc-400">
+                    Updated
+                  </p>
+                  <p className="break-words text-[10px] font-semibold leading-tight text-zinc-500">
+                    {updatedAtLabel(vehicle.updated_at)}
+                  </p>
+                  <p className="text-[10px] text-zinc-400 font-bold uppercase mt-1 truncate">
                     {vehicle.driver || "-"}
                   </p>
                 </div>

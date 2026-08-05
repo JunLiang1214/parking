@@ -189,6 +189,7 @@ export type DashboardVehicle = {
   move_to?: string | null;
   check_in?: string | null;
   created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type DriveoutRecord = DashboardVehicle & {

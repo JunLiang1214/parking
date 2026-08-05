@@ -207,6 +207,7 @@ export function buildVehicleCheckInPayload({
     last_serviced: body.last_serviced || null,
     notes: body.notes || null,
     check_in: checkIn,
+    updated_at: checkIn,
   };
 }
 

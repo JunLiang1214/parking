@@ -38,6 +38,7 @@ export async function PATCH(
     const body = await request.json();
     const { historyRow } = body;
     const updateData = pickVehicleUpdateData(body);
+    updateData.updated_at = new Date().toISOString();
     validateVehicleNumbers(historyRow);
 
     if (historyRow) {
