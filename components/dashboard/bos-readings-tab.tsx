@@ -520,8 +520,14 @@ export function BosReadingsTab({
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 items-start justify-between gap-3 lg:w-52">
                     <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
-                      <CarFront className="size-5" />
+                    <div
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-zinc-100 text-zinc-600"
+                      style={unitColor ? { borderColor: unitColor } : undefined}
+                    >
+                      <CarFront
+                        className="size-5"
+                        style={unitColor ? { color: unitColor } : undefined}
+                      />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">

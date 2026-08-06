@@ -145,8 +145,14 @@ export function SearchVehiclesTab({
               )}
             >
               <div className="flex min-w-0 items-center gap-3">
-                <div className="size-10 bg-zinc-100 text-zinc-600 rounded-lg flex items-center justify-center">
-                  <CarFront className="size-5" />
+                <div
+                  className="size-10 bg-zinc-100 text-zinc-600 rounded-lg border flex items-center justify-center"
+                  style={unitColor ? { borderColor: unitColor } : undefined}
+                >
+                  <CarFront
+                    className="size-5"
+                    style={unitColor ? { color: unitColor } : undefined}
+                  />
                 </div>
                 <div className="min-w-0">
                   <div className="font-bold text-zinc-900">

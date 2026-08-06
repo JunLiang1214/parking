@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  CarFront,
   CheckCircle2,
   Edit2,
   History,
@@ -42,6 +43,7 @@ type ActiveVehicleDetailProps = {
   onEditTurretEsc: () => void;
   onOpenHistory: () => void;
   onUpdateVehicle: () => void;
+  vehicleUnitColor: (vehicle: { vehicle_unit?: string | null }) => string | null;
   vehicleUnitLabel: (vehicle: { vehicle_unit?: string | null }) => string;
 };
 
@@ -117,10 +119,12 @@ export function ActiveVehicleDetail({
   onEditTurretEsc,
   onOpenHistory,
   onUpdateVehicle,
+  vehicleUnitColor,
   vehicleUnitLabel,
 }: ActiveVehicleDetailProps) {
   const fireStatus = getFireExtStatus(vehicle.fire_ext_expiry);
   const serviceDue = isServiceDue(vehicle.next_servicing);
+  const unitColor = vehicleUnitColor(vehicle);
 
   return (
     <div
@@ -130,6 +134,14 @@ export function ActiveVehicleDetail({
           ? "border-amber-300 bg-amber-50/60 shadow-amber-200/60"
           : "border-zinc-200 bg-white",
       )}
+      style={
+        unitColor
+          ? {
+              borderColor: unitColor,
+              boxShadow: `0 0 0 1px ${unitColor}33`,
+            }
+          : undefined
+      }
     >
       <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
         <Button
@@ -147,6 +159,20 @@ export function ActiveVehicleDetail({
 
       <div>
         <div className="flex items-center gap-3">
+          <div
+            className="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-zinc-50"
+            style={
+              unitColor
+                ? {
+                    borderColor: unitColor,
+                    backgroundColor: `${unitColor}1A`,
+                    color: unitColor,
+                  }
+                : undefined
+            }
+          >
+            <CarFront className="size-6" />
+          </div>
           <h2 className="text-3xl font-extrabold tracking-tight text-zinc-900">
             {formatPlateDisplay(vehicle.plate)}
           </h2>

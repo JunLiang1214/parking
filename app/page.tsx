@@ -3479,6 +3479,7 @@ if (isVerificationPending) {
             onEditTurretEsc={handleEditTurretEsc}
             onOpenHistory={() => setActiveTab("history")}
             onUpdateVehicle={() => guardVerifiedAction(handleOpenUpdate)}
+            vehicleUnitColor={vehicleUnitColor}
             vehicleUnitLabel={vehicleUnitLabel}
           />
         )}
