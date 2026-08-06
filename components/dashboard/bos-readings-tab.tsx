@@ -521,7 +521,7 @@ export function BosReadingsTab({
                   <div className="flex min-w-0 items-start justify-between gap-3 lg:w-52">
                     <div className="flex min-w-0 items-center gap-3">
                     <div
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-zinc-100 text-zinc-600"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border-2 bg-zinc-100 text-zinc-600"
                       style={unitColor ? { borderColor: unitColor } : undefined}
                     >
                       <CarFront
@@ -534,16 +534,11 @@ export function BosReadingsTab({
                         <p className="truncate text-base font-extrabold text-zinc-900">
                           {formatPlateDisplay(vehicle.plate)}
                         </p>
-                        <span
-                          className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-white"
-                          style={unitColor ? { borderColor: unitColor } : undefined}
-                        >
-                          {vehicle.is_vor ? (
-                            <XCircle className="size-4 text-red-600" />
-                          ) : (
-                            <CheckCircle2 className="size-4 text-emerald-600" />
-                          )}
-                        </span>
+                        {vehicle.is_vor ? (
+                          <XCircle className="size-4 shrink-0 text-red-600" />
+                        ) : (
+                          <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+                        )}
                       </div>
                       <p className="truncate text-[11px] font-semibold text-zinc-400">
                         {vehicleUnitLabel(vehicle)}

@@ -267,7 +267,7 @@ export function ParkingTab({
               <div className="w-full bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between gap-4 animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex min-w-0 items-start gap-3">
                   <div
-                    className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-zinc-50 text-zinc-600"
+                    className="flex size-10 shrink-0 items-center justify-center rounded-lg border-2 bg-zinc-50 text-zinc-600"
                     style={
                       selectedLotVehicleColor
                         ? { borderColor: selectedLotVehicleColor }

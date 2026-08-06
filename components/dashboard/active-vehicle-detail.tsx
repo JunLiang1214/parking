@@ -129,7 +129,7 @@ export function ActiveVehicleDetail({
   return (
     <div
       className={cn(
-        "rounded-xl border p-6 shadow-sm space-y-6",
+        "rounded-xl border-2 p-6 shadow-sm space-y-6",
         serviceDue
           ? "border-amber-300 bg-amber-50/60 shadow-amber-200/60"
           : "border-zinc-200 bg-white",
@@ -138,7 +138,7 @@ export function ActiveVehicleDetail({
         unitColor
           ? {
               borderColor: unitColor,
-              boxShadow: `0 0 0 1px ${unitColor}33`,
+              boxShadow: `0 0 0 2px ${unitColor}33`,
             }
           : undefined
       }
@@ -160,7 +160,7 @@ export function ActiveVehicleDetail({
       <div>
         <div className="flex items-center gap-3">
           <div
-            className="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-zinc-50"
+            className="flex size-12 shrink-0 items-center justify-center rounded-xl border-2 bg-zinc-50"
             style={
               unitColor
                 ? {

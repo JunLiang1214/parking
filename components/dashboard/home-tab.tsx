@@ -212,7 +212,7 @@ export function HomeTab({
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="size-10 bg-zinc-100 text-zinc-600 rounded-lg border flex items-center justify-center"
+                    className="size-10 bg-zinc-100 text-zinc-600 rounded-lg border-2 flex items-center justify-center"
                     style={unitColor ? { borderColor: unitColor } : undefined}
                   >
                     <CarFront
@@ -233,16 +233,11 @@ export function HomeTab({
                   </div>
                 </div>
                 <div className="flex shrink-0 items-start gap-2">
-                  <span
-                    className="flex size-7 items-center justify-center rounded-full border bg-white"
-                    style={unitColor ? { borderColor: unitColor } : undefined}
-                  >
-                    {vehicle.is_vor ? (
-                      <XCircle className="size-4 text-red-600" />
-                    ) : (
-                      <CheckCircle2 className="size-4 text-emerald-600" />
-                    )}
-                  </span>
+                  {vehicle.is_vor ? (
+                    <XCircle className="mt-0.5 size-4 text-red-600" />
+                  ) : (
+                    <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
+                  )}
                   <div className="text-right">
                     <p className="text-xs text-red-600 font-semibold">
                       {formatTimeAgo(vehicle.check_in)}
