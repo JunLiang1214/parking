@@ -39,6 +39,7 @@ import {
 import { FireExpiryPicker } from "@/components/dashboard/fire-expiry-picker";
 import { HomeTab } from "@/components/dashboard/home-tab";
 import { LoginGate } from "@/components/dashboard/login-gate";
+import { ManagementTab } from "@/components/dashboard/management-tab";
 import { NotificationsTab } from "@/components/dashboard/notifications-tab";
 import { ParkingTab } from "@/components/dashboard/parking-tab";
 import { ReminderTray } from "@/components/dashboard/reminder-tray";
@@ -693,7 +694,7 @@ useEffect(() => {
     .then(
       (
         data: {
-          vehicleUnits?: { id: string; name: string }[];
+          vehicleUnits?: VehicleUnitOption[];
           error?: string;
         } | null,
       ) => {
@@ -955,6 +956,18 @@ if (isVerificationPending) {
 
   const vehicleUnitLabel = (vehicle: { vehicle_unit?: string | null }) =>
     vehicle.vehicle_unit || "No vehicle unit";
+
+  const vehicleUnitColor = (vehicle: { vehicle_unit?: string | null }) => {
+    const unitName = vehicle.vehicle_unit?.trim().toLowerCase();
+    if (!unitName) return null;
+    const colorHex = vehicleUnits.find(
+      (unit) => unit.name.trim().toLowerCase() === unitName,
+    )?.color_hex;
+
+    return colorHex && /^#[0-9A-Fa-f]{6}$/.test(colorHex)
+      ? colorHex
+      : null;
+  };
 
   const getDateDaysLeft = (dateStr?: string | null) => {
     if (!dateStr) return null;
@@ -2167,6 +2180,11 @@ if (isVerificationPending) {
       setIsSidebarOpen(false);
       return;
     }
+    if (tab === "management" && !profile.is_admin) {
+      triggerToast("Only admins can access Management");
+      setIsSidebarOpen(false);
+      return;
+    }
 
     setActiveTab(tab);
     setIsSidebarOpen(false);
@@ -2416,6 +2434,7 @@ if (isVerificationPending) {
             onLogVehicleIn={() => guardVerifiedAction(openCheckinModal)}
             onOpenParkingLevel={openParkingLevel}
             onOpenVehicle={handleOpenVehicle}
+            vehicleUnitColor={vehicleUnitColor}
             vehicleUnitLabel={vehicleUnitLabel}
           />
         )}
@@ -2441,6 +2460,7 @@ if (isVerificationPending) {
             onOpenVehicle={handleOpenVehicle}
             onSearchQueryChange={setSearchQuery}
             onSearchVehicleUnitChange={setSearchVehicleUnit}
+            vehicleUnitColor={vehicleUnitColor}
             vehicleUnitLabel={vehicleUnitLabel}
           />
         )}
@@ -2461,6 +2481,7 @@ if (isVerificationPending) {
             onUpdateVehicle={(vehicle) =>
               guardVerifiedAction(() => handleOpenUpdate(vehicle))
             }
+            vehicleUnitColor={vehicleUnitColor}
           />
         )}
 
@@ -2488,7 +2509,19 @@ if (isVerificationPending) {
                 setIsConfirmingDriveout(true);
               })
             }
+            vehicleUnitColor={vehicleUnitColor}
             vehicleUnitLabel={vehicleUnitLabel}
+          />
+        )}
+
+        {activeTab === "management" && profile.is_admin && (
+          <ManagementTab
+            activeFacility={activeFacility}
+            activeFacilityName={activeFacilityName}
+            initialVehicleUnits={vehicleUnits}
+            onAfterChange={fetchDashboardData}
+            onVehicleUnitsChange={setVehicleUnits}
+            triggerToast={triggerToast}
           />
         )}
 

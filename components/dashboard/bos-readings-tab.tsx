@@ -62,6 +62,7 @@ type BosReadingsTabProps = {
   onExportPdf: (vehicles: BosVehicle[]) => void;
   onOpenVehicle: (vehicle: BosVehicle) => void;
   onUpdateVehicle: (vehicle: BosVehicle) => void;
+  vehicleUnitColor: (vehicle: { vehicle_unit?: string | null }) => string | null;
 };
 
 function vehicleUnitLabel(vehicle: BosVehicle) {
@@ -132,6 +133,7 @@ export function BosReadingsTab({
   onExportPdf,
   onOpenVehicle,
   onUpdateVehicle,
+  vehicleUnitColor,
 }: BosReadingsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
@@ -499,6 +501,7 @@ export function BosReadingsTab({
               vehicle.fire_ext_expiry ?? null,
             );
             const serviceDue = isServicingDue(vehicle);
+            const unitColor = vehicleUnitColor(vehicle);
 
             return (
               <div
@@ -525,11 +528,16 @@ export function BosReadingsTab({
                         <p className="truncate text-base font-extrabold text-zinc-900">
                           {formatPlateDisplay(vehicle.plate)}
                         </p>
-                        {vehicle.is_vor ? (
-                          <XCircle className="size-4 shrink-0 text-red-600" />
-                        ) : (
-                          <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
-                        )}
+                        <span
+                          className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-white"
+                          style={unitColor ? { borderColor: unitColor } : undefined}
+                        >
+                          {vehicle.is_vor ? (
+                            <XCircle className="size-4 text-red-600" />
+                          ) : (
+                            <CheckCircle2 className="size-4 text-emerald-600" />
+                          )}
+                        </span>
                       </div>
                       <p className="truncate text-[11px] font-semibold text-zinc-400">
                         {vehicleUnitLabel(vehicle)}

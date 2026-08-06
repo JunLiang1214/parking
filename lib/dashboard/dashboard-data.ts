@@ -31,6 +31,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "announcement.create": "created announcement:",
   "announcement.update": "updated announcement:",
   "announcement.delete": "deleted announcement",
+  "vehicle_unit.create": "created vehicle unit:",
+  "vehicle_unit.update": "updated vehicle unit:",
+  "vehicle_unit.delete": "deleted vehicle unit",
 };
 
 export type ParkingLevelConfig = {
@@ -237,6 +240,7 @@ export type TurretEscLogRecord = {
 export type VehicleUnitOption = {
   id: string;
   name: string;
+  color_hex?: string | null;
 };
 
 type DashboardRecord = Record<string, unknown>;

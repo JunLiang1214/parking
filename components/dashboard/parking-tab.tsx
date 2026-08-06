@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileText } from "lucide-react";
+import { CarFront, Download, FileText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +38,7 @@ type ParkingTabProps = {
   onOpenParkingLevel: (level: string) => void;
   onOpenVehicle: (vehicle: ParkingVehicle) => void;
   onMoveOutVehicle: (vehicle: ParkingVehicle) => void;
+  vehicleUnitColor: (vehicle: { vehicle_unit?: string | null }) => string | null;
   vehicleUnitLabel: (vehicle: { vehicle_unit?: string | null }) => string;
 };
 
@@ -57,8 +58,13 @@ export function ParkingTab({
   onOpenParkingLevel,
   onOpenVehicle,
   onMoveOutVehicle,
+  vehicleUnitColor,
   vehicleUnitLabel,
 }: ParkingTabProps) {
+  const selectedLotVehicleColor = selectedLotVehicle
+    ? vehicleUnitColor(selectedLotVehicle)
+    : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -259,7 +265,18 @@ export function ParkingTab({
           {selectedLot ? (
             selectedLotVehicle ? (
               <div className="w-full bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between gap-4 animate-in fade-in zoom-in-95 duration-150">
-                <div>
+                <div className="flex min-w-0 items-start gap-3">
+                  <div
+                    className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-zinc-50 text-zinc-600"
+                    style={
+                      selectedLotVehicleColor
+                        ? { borderColor: selectedLotVehicleColor }
+                        : undefined
+                    }
+                  >
+                    <CarFront className="size-5" />
+                  </div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-lg text-zinc-900">
                       {formatPlateDisplay(selectedLotVehicle.plate)}
@@ -282,6 +299,7 @@ export function ParkingTab({
                     {selectedLotVehicle.driver_unit ||
                       selectedLotVehicle.driver_depot}
                   </div>
+                </div>
                 </div>
                 <div className="flex shrink-0 flex-col gap-2">
                   <Button

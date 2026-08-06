@@ -57,6 +57,7 @@ export type VehicleUnit = {
   id: string;
   facility_code: string;
   name: string;
+  color_hex?: string | null;
   is_active: boolean;
   sort_order: number | null;
 };
@@ -592,7 +593,7 @@ export async function getVehicleUnits(
 
   const { data, error } = await supabase
     .from("vehicle_units")
-    .select("id, facility_code, name, is_active, sort_order")
+    .select("*")
     .eq("facility_code", facilityCode)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -605,6 +606,113 @@ export async function getVehicleUnits(
   }
 
   return { vehicleUnits: (data || []) as VehicleUnit[] };
+}
+
+export async function createVehicleUnit(unitData: {
+  facility_code: string;
+  name: string;
+  color_hex?: string | null;
+}) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("vehicle_units")
+    .insert([
+      {
+        facility_code: unitData.facility_code,
+        name: unitData.name,
+        color_hex: unitData.color_hex ?? null,
+        is_active: true,
+      },
+    ])
+    .select()
+    .single<VehicleUnit>();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateVehicleUnit(
+  id: string,
+  updateData: {
+    name?: string;
+    color_hex?: string | null;
+  },
+) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
+  const { data: currentUnit, error: currentError } = await supabase
+    .from("vehicle_units")
+    .select("*")
+    .eq("id", id)
+    .single<VehicleUnit>();
+
+  if (currentError) throw currentError;
+
+  const { data, error } = await supabase
+    .from("vehicle_units")
+    .update(updateData)
+    .eq("id", id)
+    .select()
+    .single<VehicleUnit>();
+
+  if (error) throw error;
+
+  if (
+    currentUnit &&
+    updateData.name &&
+    updateData.name !== currentUnit.name
+  ) {
+    const { error: vehiclesError } = await supabase
+      .from("vehicles")
+      .update({ vehicle_unit: updateData.name })
+      .eq("facility_code", currentUnit.facility_code)
+      .eq("vehicle_unit", currentUnit.name);
+
+    if (vehiclesError) throw vehiclesError;
+
+    const { error: historyError } = await supabase
+      .from("history")
+      .update({ vehicle_unit: updateData.name })
+      .eq("facility_code", currentUnit.facility_code)
+      .eq("vehicle_unit", currentUnit.name);
+
+    if (historyError) throw historyError;
+  }
+
+  return data;
+}
+
+export async function deleteVehicleUnit(id: string) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return { success: false };
+
+  const { data: unit, error: unitError } = await supabase
+    .from("vehicle_units")
+    .select("*")
+    .eq("id", id)
+    .single<VehicleUnit>();
+
+  if (unitError) throw unitError;
+  if (!unit) throw new Error("Vehicle unit not found.");
+
+  const { count, error: countError } = await supabase
+    .from("vehicles")
+    .select("id", { count: "exact", head: true })
+    .eq("facility_code", unit.facility_code)
+    .eq("vehicle_unit", unit.name);
+
+  if (countError) throw countError;
+  if ((count ?? 0) > 0) {
+    throw new Error("Vehicle unit is currently in use and cannot be deleted.");
+  }
+
+  const { error } = await supabase.from("vehicle_units").delete().eq("id", id);
+  if (error) throw error;
+
+  return { success: true, unit };
 }
 
 // Figures out which depot a request should operate on. Regular users are

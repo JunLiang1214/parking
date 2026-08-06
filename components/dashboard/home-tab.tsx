@@ -39,6 +39,7 @@ type HomeTabProps = {
   onDismissAnnouncement: (announcementId: string) => void;
   onOpenParkingLevel: (levelId: string) => void;
   onOpenVehicle: (vehicle: DashboardVehicle) => void;
+  vehicleUnitColor: (vehicle: { vehicle_unit?: string | null }) => string | null;
   vehicleUnitLabel: (vehicle: { vehicle_unit?: string | null }) => string;
 };
 
@@ -59,6 +60,7 @@ export function HomeTab({
   onLogVehicleIn,
   onOpenParkingLevel,
   onOpenVehicle,
+  vehicleUnitColor,
   vehicleUnitLabel,
 }: HomeTabProps) {
   return (
@@ -194,6 +196,7 @@ export function HomeTab({
           ) : recentVehicles.length > 0 ? (
             recentVehicles.map((vehicle) => {
               const serviceDue = isServicingDue(vehicle);
+              const unitColor = vehicleUnitColor(vehicle);
 
               return (
               <button
@@ -224,11 +227,16 @@ export function HomeTab({
                   </div>
                 </div>
                 <div className="flex shrink-0 items-start gap-2">
-                  {vehicle.is_vor ? (
-                    <XCircle className="mt-0.5 size-4 text-red-600" />
-                  ) : (
-                    <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
-                  )}
+                  <span
+                    className="flex size-7 items-center justify-center rounded-full border bg-white"
+                    style={unitColor ? { borderColor: unitColor } : undefined}
+                  >
+                    {vehicle.is_vor ? (
+                      <XCircle className="size-4 text-red-600" />
+                    ) : (
+                      <CheckCircle2 className="size-4 text-emerald-600" />
+                    )}
+                  </span>
                   <div className="text-right">
                     <p className="text-xs text-red-600 font-semibold">
                       {formatTimeAgo(vehicle.check_in)}

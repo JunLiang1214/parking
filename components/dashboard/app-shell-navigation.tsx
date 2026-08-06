@@ -9,6 +9,7 @@ import {
   MapPin,
   Menu,
   Search,
+  Settings,
   ShieldCheck,
   User,
   Wrench,
@@ -156,6 +157,11 @@ export function AppShellNavigation({
     ...sidebarFooterItems,
     ...(profile.is_admin
       ? [
+          {
+            id: "management",
+            label: "Management",
+            icon: <Settings className="size-4" />,
+          },
           {
             id: "admin",
             label: "Admin",

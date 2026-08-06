@@ -43,6 +43,7 @@ type SearchVehiclesTabProps = {
   onOpenVehicle: (vehicle: SearchVehicle) => void;
   onSearchQueryChange: (value: string) => void;
   onSearchVehicleUnitChange: (value: string) => void;
+  vehicleUnitColor: (vehicle: { vehicle_unit?: string | null }) => string | null;
   vehicleUnitLabel: (vehicle: { vehicle_unit?: string | null }) => string;
 };
 
@@ -57,6 +58,7 @@ export function SearchVehiclesTab({
   onOpenVehicle,
   onSearchQueryChange,
   onSearchVehicleUnitChange,
+  vehicleUnitColor,
   vehicleUnitLabel,
 }: SearchVehiclesTabProps) {
   const updatedAtLabel = (value?: string | null) => {
@@ -128,6 +130,7 @@ export function SearchVehiclesTab({
         ) : filteredVehicles.length > 0 ? (
           filteredVehicles.map((vehicle) => {
             const serviceDue = isServicingDue(vehicle);
+            const unitColor = vehicleUnitColor(vehicle);
 
             return (
             <button
@@ -159,11 +162,16 @@ export function SearchVehiclesTab({
                 </div>
               </div>
               <div className="flex shrink-0 items-start gap-2">
-                {vehicle.is_vor ? (
-                  <XCircle className="mt-0.5 size-4 text-red-600" />
-                ) : (
-                  <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
-                )}
+                <span
+                  className="flex size-7 items-center justify-center rounded-full border bg-white"
+                  style={unitColor ? { borderColor: unitColor } : undefined}
+                >
+                  {vehicle.is_vor ? (
+                    <XCircle className="size-4 text-red-600" />
+                  ) : (
+                    <CheckCircle2 className="size-4 text-emerald-600" />
+                  )}
+                </span>
                 <div className="w-28 text-right sm:w-32">
                   <p className="text-xs text-red-600 font-semibold">
                     {formatTimeAgo(vehicle.check_in || "")}
