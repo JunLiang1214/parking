@@ -47,6 +47,7 @@ Recommended order:
 2. `supabase/users.sql`, only if your environment needs the standalone user-table migration
 3. `supabase/vehicle_optional_readings.sql`, if not already applied
 4. `supabase/vehicle_vor_servicing.sql`
+5. `supabase/lot_reservations.sql`
 
 The VOR and servicing migration adds:
 

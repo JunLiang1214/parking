@@ -12,6 +12,8 @@ import {
 } from "@/lib/supabase/server";
 
 const MAX_RESERVATION_DAYS = 31;
+const LOT_RESERVATIONS_SETUP_ERROR =
+  "Lot reservations are not ready yet. Please run supabase/lot_reservations.sql in the Supabase SQL editor.";
 
 function trimRequired(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -41,6 +43,16 @@ function parseReservedUntil(value: unknown) {
   return reservedUntil.toISOString();
 }
 
+function isDatabaseSetupError(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("permission denied") ||
+    normalized.includes("lot_reservations") ||
+    normalized.includes("could not find the table") ||
+    normalized.includes("schema cache")
+  );
+}
+
 export async function GET(request: NextRequest) {
   const session = await getRequestSession(request);
 
@@ -59,8 +71,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ reservations, facility: facilityCode });
   } catch (err) {
     console.error("Failed to load lot reservations:", err);
+    const message = err instanceof Error ? err.message : "";
     return NextResponse.json(
-      { error: "Failed to load lot reservations" },
+      {
+        error: isDatabaseSetupError(message)
+          ? LOT_RESERVATIONS_SETUP_ERROR
+          : "Failed to load lot reservations",
+      },
       { status: 500 },
     );
   }
@@ -140,7 +157,10 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("Reserve lot failed:", err);
     const message = err instanceof Error ? err.message : "Reserve lot failed";
-    const status = message.includes("hasn't been verified")
+    const setupError = isDatabaseSetupError(message);
+    const status = setupError
+      ? 500
+      : message.includes("hasn't been verified")
       ? 403
       : message.includes("required") ||
           message.includes("invalid") ||
@@ -152,6 +172,9 @@ export async function POST(request: NextRequest) {
         ? 400
         : 500;
 
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+      { error: setupError ? LOT_RESERVATIONS_SETUP_ERROR : message },
+      { status },
+    );
   }
 }
