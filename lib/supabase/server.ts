@@ -62,6 +62,21 @@ export type VehicleUnit = {
   sort_order: number | null;
 };
 
+export type LotReservation = {
+  id: string;
+  facility_code: string;
+  level: string;
+  lot: string;
+  reserved_by: string;
+  reserver_name: string;
+  reserver_phone: string;
+  reserver_unit: string;
+  reserved_until: string;
+  purpose: string;
+  cancelled_at?: string | null;
+  created_at: string;
+};
+
 export type SafetyMessage = {
   id: string;
   message: string;
@@ -1103,6 +1118,107 @@ export async function getVehicles(facilityCode: string) {
     .order("check_in", { ascending: false });
   if (error) throw error;
   return (data || []).map(withVehiclePlate);
+}
+
+export async function getLotReservations(facilityCode: string) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("lot_reservations")
+    .select("*")
+    .eq("facility_code", facilityCode)
+    .is("cancelled_at", null)
+    .gt("reserved_until", new Date().toISOString())
+    .order("reserved_until", { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as LotReservation[];
+}
+
+export async function getActiveLotReservation(
+  facilityCode: string,
+  level: string,
+  lot: string,
+) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("lot_reservations")
+    .select("*")
+    .eq("facility_code", facilityCode)
+    .eq("level", level)
+    .eq("lot", lot)
+    .is("cancelled_at", null)
+    .gt("reserved_until", new Date().toISOString())
+    .maybeSingle<LotReservation>();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function assertLotAvailableForParking(
+  facilityCode: string,
+  level: string,
+  lot: string,
+) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const normalizedLot = String(lot).toUpperCase().trim();
+  const { data: occupiedVehicle, error: vehicleError } = await supabase
+    .from("vehicles")
+    .select("id")
+    .eq("facility_code", facilityCode)
+    .eq("level", level)
+    .eq("lot", normalizedLot)
+    .maybeSingle<{ id: string }>();
+
+  if (vehicleError) throw vehicleError;
+  if (occupiedVehicle) {
+    throw new Error("Lot is already occupied by a vehicle.");
+  }
+
+  const reservation = await getActiveLotReservation(
+    facilityCode,
+    level,
+    normalizedLot,
+  );
+  if (reservation) {
+    throw new Error("Lot is currently reserved.");
+  }
+}
+
+export async function createLotReservation(reservationData: {
+  facility_code: string;
+  level: string;
+  lot: string;
+  reserved_by: string;
+  reserver_name: string;
+  reserver_phone: string;
+  reserver_unit: string;
+  reserved_until: string;
+  purpose: string;
+}) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
+  const lot = String(reservationData.lot).toUpperCase().trim();
+  await assertLotAvailableForParking(
+    reservationData.facility_code,
+    reservationData.level,
+    lot,
+  );
+
+  const { data, error } = await supabase
+    .from("lot_reservations")
+    .insert([{ ...reservationData, lot }])
+    .select()
+    .single<LotReservation>();
+
+  if (error) throw error;
+  return data;
 }
 
 export async function checkinVehicle(vehicleData: SupabasePayload) {

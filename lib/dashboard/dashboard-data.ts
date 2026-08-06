@@ -200,6 +200,21 @@ export type DriveoutRecord = DashboardVehicle & {
   check_out?: string | null;
 };
 
+export type LotReservationRecord = {
+  id: string;
+  facility_code: string;
+  level: string;
+  lot: string;
+  reserved_by: string;
+  reserver_name: string;
+  reserver_phone: string;
+  reserver_unit: string;
+  reserved_until: string;
+  purpose: string;
+  cancelled_at?: string | null;
+  created_at: string;
+};
+
 type TurretEscCheckValue = boolean | null | undefined;
 
 export type TurretEscLogRecord = {
@@ -245,6 +260,7 @@ export type VehicleUnitOption = {
 
 type DashboardRecord = Record<string, unknown>;
 type ExportVehicle = DashboardVehicle;
+type ExportReservation = LotReservationRecord;
 
 export const DEFAULT_PARKING_LEVELS =
   defaultParkingConfig.levels as ParkingLevelConfig[];
@@ -655,9 +671,24 @@ export function exportAdminActionsPDF(records: AuditLogEntry[]) {
 function parkingCellLabel(
   lot: string,
   vehicle: ExportVehicle | undefined,
+  reservation?: ExportReservation,
   includeVehicleDetails = true,
 ) {
-  if (!vehicle) return `${lot}\nEmpty`;
+  if (!vehicle) {
+    if (!reservation) return `${lot}\nEmpty`;
+
+    const reservedUntil = format(
+      new Date(reservation.reserved_until),
+      "dd MMM yyyy HH:mm",
+    );
+    return [
+      lot,
+      "Reserved",
+      `${reservation.reserver_name} / ${reservation.reserver_unit}`,
+      `Until ${reservedUntil}`,
+      reservation.purpose,
+    ].join("\n");
+  }
 
   const parts = [lot, formatPlateDisplay(vehicle.plate)];
   if (vehicle.is_vor) parts.push("VOR");
@@ -672,11 +703,18 @@ function parkingCellLabel(
 function buildParkingLevelRows(
   level: ParkingLevelConfig,
   vehicles: ExportVehicle[],
+  reservations: ExportReservation[] = [],
 ) {
   const occupiedLots = vehicles
     .filter((vehicle) => vehicleMatchesLevel(vehicle, level))
     .reduce<Record<string, ExportVehicle | undefined>>((map, vehicle) => {
       map[normalizeParkingValue(vehicle.lot)] = vehicle;
+      return map;
+    }, {});
+  const reservedLots = reservations
+    .filter((reservation) => reservation.level === level.id)
+    .reduce<Record<string, ExportReservation | undefined>>((map, reservation) => {
+      map[normalizeParkingValue(reservation.lot)] = reservation;
       return map;
     }, {});
   const columns = level.layout?.columns?.length
@@ -693,7 +731,11 @@ function buildParkingLevelRows(
 
     return cells.map((cell) => {
       if (cell.type === "area") return cell.label.replace(/\n/g, " ");
-      return parkingCellLabel(cell.id, occupiedLots[normalizeParkingValue(cell.id)]);
+      return parkingCellLabel(
+        cell.id,
+        occupiedLots[normalizeParkingValue(cell.id)],
+        reservedLots[normalizeParkingValue(cell.id)],
+      );
     });
   });
   const maxRows = Math.max(1, ...columnRows.map((rows) => rows.length));
@@ -706,19 +748,21 @@ function buildParkingLevelRows(
 function buildParkingExportSections(
   levels: ParkingLevelConfig[],
   vehicles: ExportVehicle[],
+  reservations: ExportReservation[] = [],
 ) {
   return levels.map((level) => ({
     level,
-    rows: buildParkingLevelRows(level, vehicles),
+    rows: buildParkingLevelRows(level, vehicles, reservations),
   }));
 }
 
 export function exportParkingLayoutCSV(
   levels: ParkingLevelConfig[],
   vehicles: ExportVehicle[],
+  reservations: ExportReservation[] = [],
 ) {
   const rows: string[][] = [];
-  buildParkingExportSections(levels, vehicles).forEach(({ level, rows: levelRows }) => {
+  buildParkingExportSections(levels, vehicles, reservations).forEach(({ level, rows: levelRows }) => {
     if (rows.length) rows.push([]);
     rows.push([level.label]);
     rows.push(...levelRows);
@@ -730,6 +774,7 @@ export function exportParkingLayoutCSV(
 export function exportParkingLayoutPDF(
   levels: ParkingLevelConfig[],
   vehicles: ExportVehicle[],
+  reservations: ExportReservation[] = [],
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFontSize(14);
@@ -738,7 +783,7 @@ export function exportParkingLayoutPDF(
   doc.text(`Generated ${format(new Date(), "dd MMM yyyy HH:mm")}`, 14, 20);
 
   let startY = 28;
-  buildParkingExportSections(levels, vehicles).forEach(({ level, rows }) => {
+  buildParkingExportSections(levels, vehicles, reservations).forEach(({ level, rows }) => {
     doc.setFontSize(11);
     doc.text(level.label, 14, startY);
     autoTable(doc, {
@@ -759,6 +804,9 @@ export function exportParkingLayoutPDF(
           : String(data.cell.raw ?? "");
         if (text.includes("\nEmpty")) {
           data.cell.styles.textColor = [113, 113, 122];
+        } else if (text.includes("\nReserved")) {
+          data.cell.styles.fillColor = [254, 226, 226];
+          data.cell.styles.textColor = [127, 29, 29];
         } else if (text && text !== "DRIVEWAY") {
           data.cell.styles.fillColor = [220, 252, 231];
           data.cell.styles.textColor = [20, 83, 45];

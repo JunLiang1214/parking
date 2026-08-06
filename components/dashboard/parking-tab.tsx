@@ -7,9 +7,11 @@ import {
   formatPlateDisplay,
   getLevelLots,
   getLotOccupancyClasses,
+  type LotReservationRecord,
   normalizeParkingValue,
   type ParkingLevelConfig,
 } from "@/lib/dashboard/dashboard-data";
+import { formatPhoneDisplay, whatsappUrlForPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 type ParkingVehicle = {
@@ -30,14 +32,17 @@ type ParkingTabProps = {
   selectedLevelConfig?: ParkingLevelConfig;
   selectedLevelLots: string[];
   selectedLot: string | null;
+  selectedLotReservation: LotReservationRecord | null;
   selectedLotVehicle: ParkingVehicle | null;
   occupiedLotsMap: (level: string) => Record<string, ParkingVehicle | undefined>;
+  reservedLotsMap: (level: string) => Record<string, LotReservationRecord | undefined>;
   onExportCsv: () => void;
   onExportPdf: () => void;
   onLotClick: (lotId: string, vehicle?: ParkingVehicle | null) => void;
   onOpenParkingLevel: (level: string) => void;
   onOpenVehicle: (vehicle: ParkingVehicle) => void;
   onMoveOutVehicle: (vehicle: ParkingVehicle) => void;
+  onReserveLot: () => void;
   vehicleUnitColor: (vehicle: { vehicle_unit?: string | null }) => string | null;
   vehicleUnitLabel: (vehicle: { vehicle_unit?: string | null }) => string;
 };
@@ -50,14 +55,17 @@ export function ParkingTab({
   selectedLevelConfig,
   selectedLevelLots,
   selectedLot,
+  selectedLotReservation,
   selectedLotVehicle,
   occupiedLotsMap,
+  reservedLotsMap,
   onExportCsv,
   onExportPdf,
   onLotClick,
   onOpenParkingLevel,
   onOpenVehicle,
   onMoveOutVehicle,
+  onReserveLot,
   vehicleUnitColor,
   vehicleUnitLabel,
 }: ParkingTabProps) {
@@ -149,6 +157,10 @@ export function ParkingTab({
               Occupied
             </span>
             <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 font-medium">
+              <span className="size-3.5 border-1.5 border-red-300 bg-red-100 rounded"></span>
+              Reserved
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 font-medium">
               <span className="size-3.5 border-1.5 border-zinc-300 bg-white rounded"></span>
               Empty
             </span>
@@ -227,7 +239,10 @@ export function ParkingTab({
 
                       const lot = cell.id;
                       const occupiedLots = occupiedLotsMap(selectedLevel);
+                      const reservedLots = reservedLotsMap(selectedLevel);
                       const vehicle = occupiedLots[normalizeParkingValue(lot)];
+                      const reservation =
+                        reservedLots[normalizeParkingValue(lot)];
 
                       return (
                         <button
@@ -238,7 +253,9 @@ export function ParkingTab({
                             "h-full w-8 rounded-md border text-[10px] font-bold transition-colors",
                             vehicle
                               ? "border-emerald-700 bg-emerald-100 text-emerald-900"
-                              : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50",
+                              : reservation
+                                ? "border-red-300 bg-red-100 text-red-900 hover:bg-red-50"
+                                : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50",
                             selectedLot === lot &&
                               "border-amber-500 bg-amber-100 text-amber-900",
                           )}
@@ -320,10 +337,65 @@ export function ParkingTab({
                 </div>
               </div>
             ) : (
-              <div className="w-full py-4 text-center text-sm font-semibold text-zinc-400 bg-zinc-50 border border-dashed border-zinc-200 rounded-lg animate-in fade-in duration-100">
-                Lot <span className="text-zinc-700 font-bold">{selectedLot}</span>{" "}
-                is currently empty.
-              </div>
+              selectedLotReservation ? (
+                <div className="flex w-full flex-col gap-3 rounded-lg border border-red-200 bg-red-50/70 p-4 text-sm animate-in fade-in duration-100 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-red-900">
+                      Lot{" "}
+                      <span className="font-extrabold">{selectedLot}</span> is
+                      currently reserved by{" "}
+                      <span className="font-extrabold">
+                        {selectedLotReservation.reserver_name}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-red-800">
+                      {selectedLotReservation.reserver_unit} - Until{" "}
+                      {new Date(
+                        selectedLotReservation.reserved_until,
+                      ).toLocaleString("en-SG", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-red-700">
+                      {selectedLotReservation.purpose}
+                    </p>
+                    <a
+                      href={
+                        whatsappUrlForPhone(
+                          selectedLotReservation.reserver_phone,
+                        ) || undefined
+                      }
+                      target="_blank"
+                      className="mt-2 inline-flex text-xs font-bold text-red-700 underline-offset-2 hover:underline"
+                    >
+                      {formatPhoneDisplay(
+                        selectedLotReservation.reserver_phone,
+                      ) || selectedLotReservation.reserver_phone}
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex w-full flex-col gap-3 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-4 text-center text-sm font-semibold text-zinc-400 animate-in fade-in duration-100 sm:flex-row sm:items-center sm:justify-between sm:text-left">
+                  <p>
+                    Lot{" "}
+                    <span className="font-bold text-zinc-700">
+                      {selectedLot}
+                    </span>{" "}
+                    is currently empty.
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={onReserveLot}
+                    className="h-8 bg-red-600 px-4 text-xs font-semibold hover:bg-red-700"
+                  >
+                    Reserve lot
+                  </Button>
+                </div>
+              )
             )
           ) : (
             <div className="text-xs font-semibold text-zinc-400">

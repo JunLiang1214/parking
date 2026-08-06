@@ -43,6 +43,7 @@ import { ManagementTab } from "@/components/dashboard/management-tab";
 import { NotificationsTab } from "@/components/dashboard/notifications-tab";
 import { ParkingTab } from "@/components/dashboard/parking-tab";
 import { ReminderTray } from "@/components/dashboard/reminder-tray";
+import { ReserveLotDialog } from "@/components/dashboard/reserve-lot-dialog";
 import { RemoveUserDialog } from "@/components/dashboard/remove-user-dialog";
 import { RequiredMark } from "@/components/dashboard/required-mark";
 import { SearchVehiclesTab } from "@/components/dashboard/search-vehicles-tab";
@@ -93,6 +94,7 @@ import {
   type DashboardUserProfile,
   type DashboardVehicle,
   type DriveoutRecord,
+  type LotReservationRecord,
   type ParkingLevelConfig,
   type SafetyMessageRecord,
   type TurretEscLogRecord,
@@ -185,6 +187,9 @@ export default function Home() {
   const [vehicles, setVehicles] = useState<DashboardVehicle[]>([]);
   const [recentVehicles, setRecentVehicles] = useState<DashboardVehicle[]>([]);
   const [driveoutRecords, setDriveoutRecords] = useState<DriveoutRecord[]>([]);
+  const [lotReservations, setLotReservations] = useState<LotReservationRecord[]>(
+    [],
+  );
   const [vehicleUnits, setVehicleUnits] = useState<VehicleUnitOption[]>([]);
   const [selectedVehicle, setSelectedVehicle] =
     useState<DashboardVehicle | null>(null);
@@ -219,6 +224,10 @@ export default function Home() {
     useState<DriveoutRecord | null>(null);
   const [driveBackLevel, setDriveBackLevel] = useState("");
   const [driveBackLot, setDriveBackLot] = useState("");
+  const [isReservingLot, setIsReservingLot] = useState(false);
+  const [reservationFormError, setReservationFormError] = useState<string | null>(
+    null,
+  );
   const [driveBackError, setDriveBackError] = useState<string | null>(null);
   const [servicingPromptVehicle, setServicingPromptVehicle] =
     useState<DashboardVehicle | null>(null);
@@ -396,6 +405,7 @@ useEffect(() => {
         setVehicles([]);
         setRecentVehicles([]);
         setDriveoutRecords([]);
+        setLotReservations([]);
         setParkingLevels([]);
         setSafetyMessages([]);
         setAnnouncements([]);
@@ -485,6 +495,23 @@ useEffect(() => {
     } catch (err) {
       console.error("Failed to load drive-out history:", err);
       triggerToast("⚠ Could not load drive-out history");
+    }
+  };
+
+  const fetchLotReservations = async () => {
+    try {
+      const response = await fetch(
+        `/api/lot-reservations?facility=${encodeURIComponent(activeFacility)}`,
+      );
+      if (response.ok) {
+        const data = (await response.json()) as {
+          reservations?: LotReservationRecord[];
+        };
+        setLotReservations(data.reservations || []);
+      }
+    } catch (err) {
+      console.error("Failed to load lot reservations:", err);
+      setLotReservations([]);
     }
   };
 
@@ -686,6 +713,7 @@ useEffect(() => {
 
   fetchDashboardData().finally(() => setIsLoadingDashboard(false));
   fetchParkingConfig();
+  fetchLotReservations();
   fetchSafetyMessages();
   fetchAnnouncements();
 
@@ -728,6 +756,7 @@ useEffect(() => {
 
   const interval = window.setInterval(() => {
     fetchDashboardData();
+    fetchLotReservations();
 
     if (profile.is_admin) {
       fetchAdminData({ runCleanup: false, showLoading: false });
@@ -1288,6 +1317,24 @@ if (isVerificationPending) {
     return map;
   };
 
+  const reservedLotsMap = (level: string) => {
+    const levelConfig =
+      parkingLevels.find((parkingLevel) => parkingLevel.id === level) ??
+      parkingLevels.find(
+        (parkingLevel) =>
+          normalizeParkingValue(parkingLevel.id) ===
+          normalizeParkingValue(level),
+      );
+    const levelId = levelConfig?.id ?? level;
+    const map: Record<string, LotReservationRecord> = {};
+    lotReservations
+      .filter((reservation) => reservation.level === levelId)
+      .forEach((reservation) => {
+        map[normalizeParkingValue(reservation.lot)] = reservation;
+      });
+    return map;
+  };
+
   const ciLevelConfig =
     parkingLevels.find((parkingLevel) => parkingLevel.id === ciLevel) ??
     parkingLevels[0];
@@ -1328,6 +1375,10 @@ if (isVerificationPending) {
   const updateOccupiedLots = selectedVehicle
     ? occupiedLotsMap(upLevel || selectedVehicle.level || "")
     : {};
+  const selectedLotReservation =
+    selectedLot && selectedLevel
+      ? reservedLotsMap(selectedLevel)[normalizeParkingValue(selectedLot)] ?? null
+      : null;
 
   const openCheckinModal = () => {
     if (!profile) return;
@@ -1346,6 +1397,52 @@ if (isVerificationPending) {
   ) => {
     setSelectedLot(lotId);
     setSelectedLotVehicle(occupiedVeh ?? null);
+  };
+
+  const handleReserveLotSubmit = async ({
+    reserveDate,
+    reserveTime,
+    purpose,
+  }: {
+    reserveDate: string;
+    reserveTime: string;
+    purpose: string;
+  }) => {
+    if (!selectedLevel || !selectedLot) return;
+
+    setIsSubmitting(true);
+    setReservationFormError(null);
+
+    try {
+      const reservedUntil = localInputToUtcIso(`${reserveDate}T${reserveTime}`);
+      if (!reservedUntil) {
+        throw new Error("Reserve until date and time are required.");
+      }
+
+      const response = await fetch("/api/lot-reservations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          facility: activeFacility,
+          level: selectedLevel,
+          lot: selectedLot,
+          reservedUntil,
+          purpose,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Reserve lot failed");
+      }
+
+      setIsReservingLot(false);
+      triggerToast(`Lot ${selectedLot} reserved`);
+      await fetchLotReservations();
+    } catch (err: unknown) {
+      setReservationFormError(getErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Submit check-in handler
@@ -2495,10 +2592,16 @@ if (isVerificationPending) {
             selectedLevelConfig={selectedLevelConfig}
             selectedLevelLots={selectedLevelLots}
             selectedLot={selectedLot}
+            selectedLotReservation={selectedLotReservation}
             selectedLotVehicle={selectedLotVehicle}
             occupiedLotsMap={occupiedLotsMap}
-            onExportCsv={() => exportParkingLayoutCSV(parkingLevels, vehicles)}
-            onExportPdf={() => exportParkingLayoutPDF(parkingLevels, vehicles)}
+            reservedLotsMap={reservedLotsMap}
+            onExportCsv={() =>
+              exportParkingLayoutCSV(parkingLevels, vehicles, lotReservations)
+            }
+            onExportPdf={() =>
+              exportParkingLayoutPDF(parkingLevels, vehicles, lotReservations)
+            }
             onLotClick={handleLotClick}
             onOpenParkingLevel={openParkingLevel}
             onOpenVehicle={handleOpenVehicle}
@@ -2509,6 +2612,10 @@ if (isVerificationPending) {
                 setIsConfirmingDriveout(true);
               })
             }
+            onReserveLot={() => guardVerifiedAction(() => {
+              setReservationFormError(null);
+              setIsReservingLot(true);
+            })}
             vehicleUnitColor={vehicleUnitColor}
             vehicleUnitLabel={vehicleUnitLabel}
           />
@@ -3555,6 +3662,20 @@ if (isVerificationPending) {
           setCiPlate={setCiPlate}
           setCiVariant={setCiVariant}
           setCiVehicleUnit={setCiVehicleUnit}
+        />
+      )}
+      {isReservingLot && selectedLevel && selectedLot && (
+        <ReserveLotDialog
+          activeFacilityName={activeFacilityName}
+          level={selectedLevel}
+          lot={selectedLot}
+          profileName={profile.name || ""}
+          profilePhone={profile.phone || ""}
+          profileUnit={profileUnit}
+          formError={reservationFormError}
+          isSubmitting={isSubmitting}
+          onClose={() => setIsReservingLot(false)}
+          onSubmit={handleReserveLotSubmit}
         />
       )}
       {/* UPDATE DIALOG OVERLAY */}

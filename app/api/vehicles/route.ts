@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { getRequestSession } from "@/lib/api-auth";
 import { rateLimited } from "@/lib/rate-limit";
-import { getVehicles, checkinVehicle, requireVerified, resolveFacilityCode } from "@/lib/supabase/server";
+import {
+  assertLotAvailableForParking,
+  checkinVehicle,
+  getVehicles,
+  requireVerified,
+  resolveFacilityCode,
+} from "@/lib/supabase/server";
 import {
   BRACKETED_PLATE_ERROR,
   bracketedPlateDigitsOnly,
@@ -59,6 +65,11 @@ export async function POST(request: NextRequest) {
     }
 
     const facilityCode = await resolveFacilityCode(session.openid, body.facility);
+    await assertLotAvailableForParking(
+      facilityCode,
+      String(body.level),
+      String(body.lot),
+    );
 
     const plateNumber = normalizeBracketedPlate(String(body.plate));
     try {
