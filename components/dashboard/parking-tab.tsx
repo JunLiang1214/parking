@@ -36,6 +36,7 @@ type ParkingTabProps = {
   selectedLotVehicle: ParkingVehicle | null;
   occupiedLotsMap: (level: string) => Record<string, ParkingVehicle | undefined>;
   reservedLotsMap: (level: string) => Record<string, LotReservationRecord | undefined>;
+  freeingReservationId: string | null;
   onExportCsv: () => void;
   onExportPdf: () => void;
   onLotClick: (lotId: string, vehicle?: ParkingVehicle | null) => void;
@@ -43,6 +44,7 @@ type ParkingTabProps = {
   onOpenVehicle: (vehicle: ParkingVehicle) => void;
   onMoveOutVehicle: (vehicle: ParkingVehicle) => void;
   onReserveLot: () => void;
+  onFreeReservedLot: (reservation: LotReservationRecord) => void;
   vehicleUnitColor: (vehicle: { vehicle_unit?: string | null }) => string | null;
   vehicleUnitLabel: (vehicle: { vehicle_unit?: string | null }) => string;
 };
@@ -59,6 +61,7 @@ export function ParkingTab({
   selectedLotVehicle,
   occupiedLotsMap,
   reservedLotsMap,
+  freeingReservationId,
   onExportCsv,
   onExportPdf,
   onLotClick,
@@ -66,6 +69,7 @@ export function ParkingTab({
   onOpenVehicle,
   onMoveOutVehicle,
   onReserveLot,
+  onFreeReservedLot,
   vehicleUnitColor,
   vehicleUnitLabel,
 }: ParkingTabProps) {
@@ -377,6 +381,17 @@ export function ParkingTab({
                       ) || selectedLotReservation.reserver_phone}
                     </a>
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={freeingReservationId === selectedLotReservation.id}
+                    onClick={() => onFreeReservedLot(selectedLotReservation)}
+                    className="h-8 shrink-0 border-red-200 bg-white px-4 text-xs font-semibold text-red-700 hover:bg-red-100"
+                  >
+                    {freeingReservationId === selectedLotReservation.id
+                      ? "Freeing..."
+                      : "Free lot"}
+                  </Button>
                 </div>
               ) : (
                 <div className="flex w-full flex-col gap-3 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-4 text-center text-sm font-semibold text-zinc-400 animate-in fade-in duration-100 sm:flex-row sm:items-center sm:justify-between sm:text-left">

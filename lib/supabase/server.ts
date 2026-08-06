@@ -1158,6 +1158,39 @@ export async function getActiveLotReservation(
   return data;
 }
 
+export async function getLotReservationById(id: string) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("lot_reservations")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle<LotReservation>();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function cancelLotReservation(id: string) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("lot_reservations")
+    .update({ cancelled_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("cancelled_at", null)
+    .select()
+    .maybeSingle<LotReservation>();
+
+  if (error) throw error;
+  if (!data) {
+    throw new Error("Reservation is already cleared.");
+  }
+  return data;
+}
+
 export async function assertLotAvailableForParking(
   facilityCode: string,
   level: string,

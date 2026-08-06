@@ -228,6 +228,9 @@ export default function Home() {
   const [reservationFormError, setReservationFormError] = useState<string | null>(
     null,
   );
+  const [freeingReservationId, setFreeingReservationId] = useState<string | null>(
+    null,
+  );
   const [driveBackError, setDriveBackError] = useState<string | null>(null);
   const [servicingPromptVehicle, setServicingPromptVehicle] =
     useState<DashboardVehicle | null>(null);
@@ -1445,6 +1448,27 @@ if (isVerificationPending) {
     }
   };
 
+  const handleFreeReservedLot = async (reservation: LotReservationRecord) => {
+    setFreeingReservationId(reservation.id);
+
+    try {
+      const response = await fetch(`/api/lot-reservations/${reservation.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Free lot failed");
+      }
+
+      triggerToast(`Lot ${reservation.lot} freed`);
+      await fetchLotReservations();
+    } catch (err: unknown) {
+      triggerToast(`Free lot failed: ${getErrorMessage(err)}`);
+    } finally {
+      setFreeingReservationId(null);
+    }
+  };
+
   // Submit check-in handler
   const handleCheckinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2596,6 +2620,7 @@ if (isVerificationPending) {
             selectedLotVehicle={selectedLotVehicle}
             occupiedLotsMap={occupiedLotsMap}
             reservedLotsMap={reservedLotsMap}
+            freeingReservationId={freeingReservationId}
             onExportCsv={() =>
               exportParkingLayoutCSV(parkingLevels, vehicles, lotReservations)
             }
@@ -2616,6 +2641,9 @@ if (isVerificationPending) {
               setReservationFormError(null);
               setIsReservingLot(true);
             })}
+            onFreeReservedLot={(reservation) =>
+              guardVerifiedAction(() => handleFreeReservedLot(reservation))
+            }
             vehicleUnitColor={vehicleUnitColor}
             vehicleUnitLabel={vehicleUnitLabel}
           />
