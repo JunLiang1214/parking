@@ -18,7 +18,7 @@ import {
   User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 
 import { ActiveVehicleDetail } from "@/components/dashboard/active-vehicle-detail";
@@ -67,10 +67,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDashboardData } from "@/hooks/dashboard/use-dashboard-data";
+import { useLotReservations } from "@/hooks/dashboard/use-lot-reservations";
 import { useAuth } from "@/hooks/useAuth";
 import {
   AUDIT_ACTION_LABELS,
-  DEFAULT_PARKING_LEVELS,
   RANK_CATEGORIES,
   RANK_OPTIONS,
   SAFETY_MESSAGES,
@@ -95,11 +96,9 @@ import {
   type DashboardVehicle,
   type DriveoutRecord,
   type LotReservationRecord,
-  type ParkingLevelConfig,
   type SafetyMessageRecord,
   type TurretEscLogRecord,
   type UserRemovalNotice,
-  type VehicleUnitOption,
 } from "@/lib/dashboard/dashboard-data";
 import {
   formatPhoneDisplay,
@@ -132,19 +131,6 @@ export default function Home() {
   // locked to their own depot; admins can switch this via the header
   // dropdown to view/manage a different depot's operational data.
   const [activeFacility, setActiveFacility] = useState<string>("");
-  const [facilities, setFacilities] = useState<{ code: string; name: string }[]>(
-    [],
-  );
-  const [parkingLevels, setParkingLevels] = useState<ParkingLevelConfig[]>(
-    DEFAULT_PARKING_LEVELS,
-  );
-  const [isLoadingParkingConfig, setIsLoadingParkingConfig] = useState(false);
-  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
-  const [safetyMessages, setSafetyMessages] = useState<SafetyMessageRecord[]>(
-    [],
-  );
-  const [safetyIndex, setSafetyIndex] = useState(0);
-  const [announcements, setAnnouncements] = useState<AnnouncementRecord[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUserRecord[]>([]);
   const [adminSafetyMessages, setAdminSafetyMessages] = useState<
     SafetyMessageRecord[]
@@ -184,13 +170,6 @@ export default function Home() {
     useState<UserRemovalNotice | null>(null);
 
   // Dashboard vehicle data state
-  const [vehicles, setVehicles] = useState<DashboardVehicle[]>([]);
-  const [recentVehicles, setRecentVehicles] = useState<DashboardVehicle[]>([]);
-  const [driveoutRecords, setDriveoutRecords] = useState<DriveoutRecord[]>([]);
-  const [lotReservations, setLotReservations] = useState<LotReservationRecord[]>(
-    [],
-  );
-  const [vehicleUnits, setVehicleUnits] = useState<VehicleUnitOption[]>([]);
   const [selectedVehicle, setSelectedVehicle] =
     useState<DashboardVehicle | null>(null);
   const [selectedDriveout, setSelectedDriveout] =
@@ -224,13 +203,6 @@ export default function Home() {
     useState<DriveoutRecord | null>(null);
   const [driveBackLevel, setDriveBackLevel] = useState("");
   const [driveBackLot, setDriveBackLot] = useState("");
-  const [isReservingLot, setIsReservingLot] = useState(false);
-  const [reservationFormError, setReservationFormError] = useState<string | null>(
-    null,
-  );
-  const [freeingReservationId, setFreeingReservationId] = useState<string | null>(
-    null,
-  );
   const [driveBackError, setDriveBackError] = useState<string | null>(null);
   const [servicingPromptVehicle, setServicingPromptVehicle] =
     useState<DashboardVehicle | null>(null);
@@ -334,10 +306,65 @@ export default function Home() {
   const [escNotes, setEscNotes] = useState("");
 
   // Toast Helper
-  const triggerToast = (msg: string) => {
+  const triggerToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
-  };
+  }, []);
+
+  const {
+    announcements,
+    driveoutRecords,
+    facilities,
+    fetchAnnouncements,
+    fetchDashboardData,
+    fetchDriveoutHistory,
+    fetchFacilities,
+    fetchParkingConfig,
+    fetchSafetyMessages,
+    fetchVehicleUnits,
+    isLoadingDashboard,
+    isLoadingParkingConfig,
+    parkingLevels,
+    recentVehicles,
+    resetDashboardData,
+    safetyIndex,
+    safetyMessages,
+    setDriveoutRecords,
+    setIsLoadingDashboard,
+    setVehicleUnits,
+    vehicleUnits,
+    vehicles,
+  } = useDashboardData({
+    activeFacility,
+    selectedLevel,
+    checkInLevel: ciLevel,
+    setSelectedLevel,
+    setCheckInLevel: setCiLevel,
+    triggerToast,
+  });
+
+  const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : "Unknown error";
+
+  const {
+    fetchLotReservations,
+    freeingReservationId,
+    handleFreeReservedLot,
+    handleReserveLotSubmit,
+    isReservingLot,
+    lotReservations,
+    reservationFormError,
+    resetLotReservations,
+    setIsReservingLot,
+    setReservationFormError,
+  } = useLotReservations({
+    activeFacility,
+    selectedLevel,
+    selectedLot,
+    setIsSubmitting,
+    triggerToast,
+    getErrorMessage,
+  });
 
   const announcementStorageKey = (kind: "dismissed" | "deleted") =>
     profile?.id ? `trackr:${profile.id}:announcements:${kind}` : "";
@@ -405,13 +432,8 @@ useEffect(() => {
         setProfile(loadedProfile);
         setIsVerificationPending(true);
         setActiveFacility("");
-        setVehicles([]);
-        setRecentVehicles([]);
-        setDriveoutRecords([]);
-        setLotReservations([]);
-        setParkingLevels([]);
-        setSafetyMessages([]);
-        setAnnouncements([]);
+        resetDashboardData();
+        resetLotReservations();
         setProfileLoadError(null);
         return;
       }
@@ -467,129 +489,6 @@ useEffect(() => {
   setDismissedAnnouncementIds(readAnnouncementIdSet("dismissed"));
   setDeletedNotificationIds(readAnnouncementIdSet("deleted"));
 }, [profile?.id]);
-
-  // Load Vehicles & dashboard metrics
-  const fetchDashboardData = async () => {
-    try {
-      const response = await fetch(
-        `/api/vehicles?facility=${encodeURIComponent(activeFacility)}`,
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setVehicles(data.vehicles || []);
-        setRecentVehicles((data.vehicles || []).slice(0, 4));
-      }
-    } catch (err) {
-      console.error("Failed to load dashboard vehicles:", err);
-      triggerToast("⚠ Could not load vehicle data");
-    }
-  };
-
-  // Fetch drive-out history
-  const fetchDriveoutHistory = async () => {
-    try {
-      const response = await fetch(
-        `/api/history?check_out=notnull&facility=${encodeURIComponent(activeFacility)}`,
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setDriveoutRecords(data.history || []);
-      }
-    } catch (err) {
-      console.error("Failed to load drive-out history:", err);
-      triggerToast("⚠ Could not load drive-out history");
-    }
-  };
-
-  const fetchLotReservations = async () => {
-    try {
-      const response = await fetch(
-        `/api/lot-reservations?facility=${encodeURIComponent(activeFacility)}`,
-      );
-      if (response.ok) {
-        const data = (await response.json()) as {
-          reservations?: LotReservationRecord[];
-        };
-        setLotReservations(data.reservations || []);
-      }
-    } catch (err) {
-      console.error("Failed to load lot reservations:", err);
-      setLotReservations([]);
-    }
-  };
-
-  const fetchParkingConfig = async () => {
-    setIsLoadingParkingConfig(true);
-
-    try {
-      const response = await fetch(
-        `/api/config/parking?facility=${encodeURIComponent(activeFacility)}`,
-      );
-      if (!response.ok) throw new Error("Config request failed");
-
-      const data = (await response.json()) as {
-        config?: { levels?: ParkingLevelConfig[] } | null;
-      };
-      // DEFAULT_PARKING_LEVELS is 11FMD's static layout — only use it as a
-      // fallback for 11FMD itself. Any other depot with no config row yet
-      // (e.g. 12FMD before its real layout is set up) should show empty,
-      // not silently borrow another depot's lots.
-      const levels = data.config?.levels?.length
-        ? data.config.levels
-        : activeFacility === "11FMD"
-          ? DEFAULT_PARKING_LEVELS
-          : [];
-
-      setParkingLevels(levels);
-      if (
-        levels.length > 0 &&
-        !levels.some((level) => level.id === selectedLevel)
-      ) {
-        setSelectedLevel(levels[0].id);
-      }
-      if (levels.length > 0 && !levels.some((level) => level.id === ciLevel)) {
-        setCiLevel(levels[0].id);
-      }
-    } catch (err) {
-      console.error("Failed to load parking config:", err);
-      triggerToast("Could not load parking layout config");
-    } finally {
-      setIsLoadingParkingConfig(false);
-    }
-  };
-
-  const fetchSafetyMessages = async () => {
-    try {
-      const response = await fetch(
-        `/api/safety-messages?facility=${encodeURIComponent(activeFacility)}`,
-      );
-      if (!response.ok) throw new Error("Safety message request failed");
-
-      const data = (await response.json()) as {
-        messages?: SafetyMessageRecord[];
-      };
-      setSafetyMessages(data.messages || []);
-      setSafetyIndex(0);
-    } catch (err) {
-      console.error("Failed to load safety messages:", err);
-    }
-  };
-
-  const fetchAnnouncements = async () => {
-    try {
-      const response = await fetch(
-        `/api/announcements?facility=${encodeURIComponent(activeFacility)}`,
-      );
-      if (!response.ok) throw new Error("Announcement request failed");
-
-      const data = (await response.json()) as {
-        announcements?: AnnouncementRecord[];
-      };
-      setAnnouncements(data.announcements || []);
-    } catch (err) {
-      console.error("Failed to load announcements:", err);
-    }
-  };
 
   const fetchAdminData = async (
     options: { runCleanup?: boolean; showLoading?: boolean } = {},
@@ -687,25 +586,8 @@ useEffect(() => {
 useEffect(() => {
   if (!auth.isAuthenticated || !profile || isVerificationPending) return;
 
-  fetch("/api/facilities")
-    .then((res) => (res.ok ? res.json() : null))
-    .then(
-      (
-        data: {
-          facilities?: { code: string; name: string }[];
-          error?: string;
-        } | null,
-      ) => {
-        if (data?.facilities) setFacilities(data.facilities);
-
-        if (data?.error) {
-          console.error("Failed to load facilities:", data.error);
-          triggerToast(`⚠ Could not load depot list: ${data.error}`);
-        }
-      },
-    )
-    .catch((err) => console.error("Failed to load facilities:", err));
-}, [auth.isAuthenticated, profile, isVerificationPending]);
+  fetchFacilities();
+}, [auth.isAuthenticated, fetchFacilities, profile, isVerificationPending]);
 
 useEffect(() => {
   if (!auth.isAuthenticated || !profile || !activeFacility || isVerificationPending) {
@@ -720,25 +602,7 @@ useEffect(() => {
   fetchSafetyMessages();
   fetchAnnouncements();
 
-  fetch(`/api/vehicle-units?facility=${encodeURIComponent(activeFacility)}`)
-    .then((res) => (res.ok ? res.json() : null))
-    .then(
-      (
-        data: {
-          vehicleUnits?: VehicleUnitOption[];
-          error?: string;
-        } | null,
-      ) => {
-        setVehicleUnits(data?.vehicleUnits || []);
-        if (data?.error) {
-          console.error("Failed to load vehicle units:", data.error);
-        }
-      },
-    )
-    .catch((err) => {
-      console.error("Failed to load vehicle units:", err);
-      setVehicleUnits([]);
-    });
+  fetchVehicleUnits();
 
   // Admins need the full user list so ORD reminders can show on Home
   // without first opening the Admin tab.
@@ -780,21 +644,6 @@ useEffect(() => {
     fetchAdminData();
   }
 }, [activeTab, activeFacility, profile, isVerificationPending]);
-
-  useEffect(() => {
-    const activeCount =
-      safetyMessages.length > 0
-        ? safetyMessages.length
-        : SAFETY_MESSAGES.length;
-
-    if (activeCount <= 1) return;
-
-    const interval = window.setInterval(() => {
-      setSafetyIndex((index) => (index + 1) % activeCount);
-    }, 8000);
-
-    return () => window.clearInterval(interval);
-  }, [safetyMessages.length]);
 
   useEffect(() => {
     if (!profile) return;
@@ -1105,8 +954,7 @@ if (isVerificationPending) {
     }
     action();
   };
-  const getErrorMessage = (error: unknown) =>
-    error instanceof Error ? error.message : "Unknown error";
+
 
   // Handle open vehicle details
   const handleOpenVehicle = async (vehicle: DashboardVehicle) => {
@@ -1400,73 +1248,6 @@ if (isVerificationPending) {
   ) => {
     setSelectedLot(lotId);
     setSelectedLotVehicle(occupiedVeh ?? null);
-  };
-
-  const handleReserveLotSubmit = async ({
-    reserveDate,
-    reserveTime,
-    purpose,
-  }: {
-    reserveDate: string;
-    reserveTime: string;
-    purpose: string;
-  }) => {
-    if (!selectedLevel || !selectedLot) return;
-
-    setIsSubmitting(true);
-    setReservationFormError(null);
-
-    try {
-      const reservedUntil = localInputToUtcIso(`${reserveDate}T${reserveTime}`);
-      if (!reservedUntil) {
-        throw new Error("Reserve until date and time are required.");
-      }
-
-      const response = await fetch("/api/lot-reservations", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          facility: activeFacility,
-          level: selectedLevel,
-          lot: selectedLot,
-          reservedUntil,
-          purpose,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Reserve lot failed");
-      }
-
-      setIsReservingLot(false);
-      triggerToast(`Lot ${selectedLot} reserved`);
-      await fetchLotReservations();
-    } catch (err: unknown) {
-      setReservationFormError(getErrorMessage(err));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleFreeReservedLot = async (reservation: LotReservationRecord) => {
-    setFreeingReservationId(reservation.id);
-
-    try {
-      const response = await fetch(`/api/lot-reservations/${reservation.id}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Free lot failed");
-      }
-
-      triggerToast(`Lot ${reservation.lot} freed`);
-      await fetchLotReservations();
-    } catch (err: unknown) {
-      triggerToast(`Free lot failed: ${getErrorMessage(err)}`);
-    } finally {
-      setFreeingReservationId(null);
-    }
   };
 
   // Submit check-in handler
