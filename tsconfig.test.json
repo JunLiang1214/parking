@@ -11,6 +11,10 @@
     "rootDir": ".",
     "target": "ES2022"
   },
-  "include": ["lib/vehicles/rules.ts", "tests/**/*.test.ts"],
+  "include": [
+    "lib/announcements/rules.ts",
+    "lib/vehicles/rules.ts",
+    "tests/**/*.test.ts"
+  ],
   "exclude": ["node_modules", ".next", ".test-dist"]
 }

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getRequestSession } from "@/lib/api-auth";
+import { normalizeAnnouncementTargetRole } from "@/lib/announcements/rules";
 import { rateLimited } from "@/lib/rate-limit";
 import {
   createAnnouncement,
@@ -14,9 +15,6 @@ import {
   updateAnnouncement,
 } from "@/lib/supabase/server";
 
-const VALID_TARGET_ROLES = ["all", "admins", "drivers", "technicians"] as const;
-type TargetRole = (typeof VALID_TARGET_ROLES)[number];
-
 function normalizeDateBoundary(value: string | null | undefined, endOfDay = false) {
   if (!value) return null;
   const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -25,12 +23,6 @@ function normalizeDateBoundary(value: string | null | undefined, endOfDay = fals
     : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toISOString();
-}
-
-function normalizeTargetRole(value: unknown): TargetRole {
-  return VALID_TARGET_ROLES.includes(value as TargetRole)
-    ? (value as TargetRole)
-    : "all";
 }
 
 function normalizeUrl(value: string | null | undefined) {
@@ -120,7 +112,7 @@ export async function POST(request: NextRequest) {
       message,
       link_url: linkUrl,
       button_label: body.buttonLabel?.trim() || null,
-      target_role: normalizeTargetRole(body.targetRole),
+      target_role: normalizeAnnouncementTargetRole(body.targetRole),
       starts_at: normalizeDateBoundary(body.startsAt),
       ends_at: normalizeDateBoundary(body.endsAt, true),
       is_active: body.isActive !== false,
@@ -200,7 +192,7 @@ export async function PATCH(request: NextRequest) {
         ? { button_label: body.buttonLabel?.trim() || null }
         : {}),
       ...(body.targetRole !== undefined
-        ? { target_role: normalizeTargetRole(body.targetRole) }
+        ? { target_role: normalizeAnnouncementTargetRole(body.targetRole) }
         : {}),
       ...(body.startsAt !== undefined
         ? { starts_at: normalizeDateBoundary(body.startsAt) }

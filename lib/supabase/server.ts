@@ -1,6 +1,11 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+
+import {
+  announcementIsVisibleToProfile,
+  normalizeAnnouncementTargetRole,
+} from "@/lib/announcements/rules";
 import {
   assertVehicleFacilityAllowed,
   resolveRequestedFacilityForProfile,
@@ -717,11 +722,17 @@ export async function deleteVehicleUnit(id: string) {
     .from("vehicles")
     .select("id", { count: "exact", head: true })
     .eq("facility_code", unit.facility_code)
-    .eq("vehicle_unit", unit.name);
+    .eq("vehicle_unit", unit.name)
+    .not("level", "is", null)
+    .not("lot", "is", null)
+    .neq("level", "")
+    .neq("lot", "");
 
   if (countError) throw countError;
   if ((count ?? 0) > 0) {
-    throw new Error("Vehicle unit is currently in use and cannot be deleted.");
+    throw new Error(
+      "Vehicle unit is currently used by an active parked vehicle and cannot be deleted.",
+    );
   }
 
   const { error } = await supabase.from("vehicle_units").delete().eq("id", id);
@@ -1540,14 +1551,6 @@ export async function deleteSafetyMessage(
   return data;
 }
 
-function announcementRolesForProfile(profile: UserProfile) {
-  const roles = ["all"];
-  if (profile.is_admin) roles.push("admins");
-  if (profile.is_technician) roles.push("technicians");
-  if (!profile.is_admin && !profile.is_technician) roles.push("drivers");
-  return roles;
-}
-
 export async function getActiveAnnouncements(
   facilityCode: string,
   profile: UserProfile,
@@ -1556,20 +1559,20 @@ export async function getActiveAnnouncements(
   if (!supabase) return [];
 
   const now = new Date().toISOString();
-  const roles = announcementRolesForProfile(profile);
   const { data, error } = await supabase
     .from("app_announcements")
     .select("*")
     .eq("is_active", true)
     .is("deleted_at", null)
-    .in("target_role", roles)
     .or(`facility_code.eq.${facilityCode},facility_code.is.null`)
     .or(`starts_at.is.null,starts_at.lte.${now}`)
     .or(`ends_at.is.null,ends_at.gte.${now}`)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data || []) as Announcement[];
+  return ((data || []) as Announcement[]).filter((announcement) =>
+    announcementIsVisibleToProfile(announcement, profile),
+  );
 }
 
 export async function getAnnouncements(facilityCode: string) {
@@ -1607,7 +1610,14 @@ export async function createAnnouncement(announcementData: {
 
   const { data, error } = await supabase
     .from("app_announcements")
-    .insert([announcementData])
+    .insert([
+      {
+        ...announcementData,
+        target_role: normalizeAnnouncementTargetRole(
+          announcementData.target_role,
+        ),
+      },
+    ])
     .select()
     .single<Announcement>();
 
