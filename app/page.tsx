@@ -2993,7 +2993,7 @@ if (isVerificationPending) {
                           <SelectItem value="all">All depots</SelectItem>
                           {facilities.map((facility) => (
                             <SelectItem key={facility.code} value={facility.code}>
-                              {facility.name || facility.code}
+                              {facility.code}
                             </SelectItem>
                           ))}
                         </SelectContent>
