@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 
+import { DatePickerField } from "@/components/dashboard/date-picker-field";
 import { FireExpiryPicker } from "@/components/dashboard/fire-expiry-picker";
 import { RequiredMark } from "@/components/dashboard/required-mark";
 import { Button } from "@/components/ui/button";
@@ -466,11 +467,9 @@ export function CheckInDialog({
               <label className="text-xs font-semibold text-zinc-700">
                 Next Servicing
               </label>
-              <input
-                type="date"
+              <DatePickerField
                 value={ciNextServicing}
-                onChange={(event) => setCiNextServicing(event.target.value)}
-                className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600"
+                onChange={setCiNextServicing}
               />
             </div>
 

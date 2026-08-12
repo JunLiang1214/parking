@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
+import { DatePickerField } from "@/components/dashboard/date-picker-field";
 import { Button } from "@/components/ui/button";
 import {
   normalizePhoneNumber,
@@ -374,25 +375,11 @@ export default function RegisterPage() {
                 ORD date
                 <RequiredMark />
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={ordDate}
-                  onChange={(event) => setOrdDate(event.target.value)}
-                  required
-                  className="h-10 min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600 focus:ring-3 focus:ring-red-600/15"
-                />
-                {ordDate ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setOrdDate("")}
-                    className="h-10 px-3 text-xs font-semibold"
-                  >
-                    Clear
-                  </Button>
-                ) : null}
-              </div>
+              <DatePickerField
+                value={ordDate}
+                onChange={setOrdDate}
+                showClear
+              />
             </div>
 
             <div className="space-y-2">

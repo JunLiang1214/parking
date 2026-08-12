@@ -1,11 +1,10 @@
 "use client";
 
-import { format } from "date-fns";
-import { Calendar, Phone, User, X } from "lucide-react";
+import { Phone, User, X } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 
+import { DatePickerField } from "@/components/dashboard/date-picker-field";
 import { Button } from "@/components/ui/button";
-import { Calendar as DatePickerCalendar } from "@/components/ui/calendar";
 import {
   Card,
   CardContent,
@@ -13,13 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { toDateInputValue } from "@/lib/dashboard/dashboard-data";
 import { formatPhoneDisplay } from "@/lib/phone";
-import { cn } from "@/lib/utils";
 
 type ReserveLotDialogProps = {
   activeFacilityName: string;
@@ -37,20 +31,6 @@ type ReserveLotDialogProps = {
     purpose: string;
   }) => void;
 };
-
-function toDateInputValue(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function parseDateInput(value: string) {
-  if (!value) return undefined;
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return undefined;
-  return new Date(year, month - 1, day);
-}
 
 export function ReserveLotDialog({
   activeFacilityName,
@@ -77,7 +57,6 @@ export function ReserveLotDialog({
   const [reserveDate, setReserveDate] = useState(toDateInputValue(now));
   const [reserveTime, setReserveTime] = useState("18:00");
   const [purpose, setPurpose] = useState("");
-  const selectedDate = parseDateInput(reserveDate);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -161,41 +140,16 @@ export function ReserveLotDialog({
                 <label className="text-xs font-semibold text-zinc-700">
                   Reserve until date
                 </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        "h-10 w-full justify-between rounded-md border-zinc-200 bg-white px-3 text-left text-sm font-normal hover:bg-zinc-50 focus:border-red-600 focus:ring-3 focus:ring-red-600/15",
-                        !reserveDate && "text-muted-foreground",
-                      )}
-                    >
-                      <span>
-                        {selectedDate
-                          ? format(selectedDate, "dd MMM yyyy")
-                          : "Select date"}
-                      </span>
-                      <Calendar className="size-4 text-zinc-400" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-auto rounded-md border border-zinc-200 bg-white p-0 shadow-md"
-                    align="start"
-                  >
-                    <DatePickerCalendar
-                      mode="single"
-                      selected={selectedDate}
-                      captionLayout="label"
-                      startMonth={today}
-                      endMonth={maxDate}
-                      disabled={{ before: today, after: maxDate }}
-                      onSelect={(date) => {
-                        setReserveDate(date ? toDateInputValue(date) : "");
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePickerField
+                  value={reserveDate}
+                  onChange={setReserveDate}
+                  calendar={{
+                    captionLayout: "label",
+                    startMonth: today,
+                    endMonth: maxDate,
+                    disabled: { before: today, after: maxDate },
+                  }}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-zinc-700">

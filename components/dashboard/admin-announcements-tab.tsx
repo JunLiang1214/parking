@@ -3,6 +3,7 @@
 import { ExternalLink, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { DatePickerField } from "@/components/dashboard/date-picker-field";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -142,22 +143,18 @@ export function AdminAnnouncementsTab({
             <label className="text-sm font-semibold text-zinc-700">
               Date from
             </label>
-            <input
-              type="date"
+            <DatePickerField
               value={draft.startsAt}
-              onChange={(event) => updateDraft("startsAt", event.target.value)}
-              className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600"
+              onChange={(value) => updateDraft("startsAt", value)}
             />
           </div>
           <div className="space-y-1">
             <label className="text-sm font-semibold text-zinc-700">
               Date to
             </label>
-            <input
-              type="date"
+            <DatePickerField
               value={draft.endsAt}
-              onChange={(event) => updateDraft("endsAt", event.target.value)}
-              className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600"
+              onChange={(value) => updateDraft("endsAt", value)}
             />
           </div>
         </div>

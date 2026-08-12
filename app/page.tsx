@@ -36,6 +36,7 @@ import {
   DriveBackDialog,
   EditDriveOutLocationDialog,
 } from "@/components/dashboard/drive-out-location-dialog";
+import { DatePickerField } from "@/components/dashboard/date-picker-field";
 import { FireExpiryPicker } from "@/components/dashboard/fire-expiry-picker";
 import { HomeTab } from "@/components/dashboard/home-tab";
 import { LoginGate } from "@/components/dashboard/login-gate";
@@ -2885,25 +2886,11 @@ if (isVerificationPending) {
                       ORD date
                       <RequiredMark />
                     </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="date"
-                        value={peOrdDate}
-                        onChange={(event) => setPeOrdDate(event.target.value)}
-                        required
-                        className="h-10 min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600 focus:ring-3 focus:ring-red-600/15"
-                      />
-                      {peOrdDate ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setPeOrdDate("")}
-                          className="h-10 px-3 text-xs font-semibold"
-                        >
-                          Clear
-                        </Button>
-                      ) : null}
-                    </div>
+                    <DatePickerField
+                      value={peOrdDate}
+                      onChange={setPeOrdDate}
+                      showClear
+                    />
                   </div>
                 </div>
 
@@ -3803,22 +3790,18 @@ if (isVerificationPending) {
                     <label className="text-xs font-semibold text-zinc-700">
                       Next Servicing
                     </label>
-                    <input
-                      type="date"
+                    <DatePickerField
                       value={upNextServicing}
-                      onChange={(e) => setUpNextServicing(e.target.value)}
-                      className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600"
+                      onChange={setUpNextServicing}
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-zinc-700">
                       Last Serviced
                     </label>
-                    <input
-                      type="date"
+                    <DatePickerField
                       value={upLastServiced}
-                      onChange={(e) => setUpLastServiced(e.target.value)}
-                      className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-red-600"
+                      onChange={setUpLastServiced}
                     />
                   </div>
                 </div>
